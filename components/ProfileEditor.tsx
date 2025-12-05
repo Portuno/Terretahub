@@ -3,7 +3,7 @@ import {
   Save, Layout, Type, Link as LinkIcon, Image as ImageIcon, 
   Youtube, Music, Trash2, GripVertical, ChevronDown, ChevronUp,
   Instagram, Twitter, Linkedin, Globe, Plus, Palette, BarChart3,
-  Video, Star, Heart, Zap, CheckCircle, Upload, Camera
+  Video, Star, Heart, Zap, CheckCircle, Upload, Camera, Smartphone, Monitor
 } from 'lucide-react';
 import { AuthUser, LinkBioProfile, BioBlock, BioTheme } from '../types';
 
@@ -642,6 +642,33 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
                    <p className="text-3xl font-bold text-terreta-dark mt-1">482</p>
                    <p className="text-xs text-green-500 mt-2 font-bold flex items-center gap-1"><ChevronUp size={12}/> +5%</p>
                 </div>
+              </div>
+
+              {/* Devices Card */}
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+                 <h4 className="font-bold text-gray-500 text-xs uppercase mb-4 flex items-center gap-2">
+                    <Smartphone size={14} /> Dispositivos
+                 </h4>
+                 <div className="space-y-4">
+                    <div>
+                       <div className="flex justify-between text-xs mb-2 text-terreta-dark font-medium">
+                          <span className="flex items-center gap-1"><Smartphone size={12}/> Móvil</span>
+                          <span className="font-bold">85%</span>
+                       </div>
+                       <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                          <div className="bg-[#D97706] h-full rounded-full transition-all duration-1000" style={{ width: '85%' }}></div>
+                       </div>
+                    </div>
+                    <div>
+                       <div className="flex justify-between text-xs mb-2 text-terreta-dark font-medium">
+                          <span className="flex items-center gap-1"><Monitor size={12}/> Escritorio</span>
+                          <span className="font-bold">15%</span>
+                       </div>
+                       <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                          <div className="bg-gray-400 h-full rounded-full transition-all duration-1000" style={{ width: '15%' }}></div>
+                       </div>
+                    </div>
+                 </div>
               </div>
 
               <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
