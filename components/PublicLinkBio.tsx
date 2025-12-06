@@ -74,7 +74,7 @@ export const PublicLinkBio: React.FC = () => {
     };
 
     fetchProfile();
-  }, [username]);
+  }, [extension]);
 
   if (loading) {
     return (
