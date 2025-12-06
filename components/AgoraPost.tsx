@@ -13,6 +13,8 @@ interface AgoraPostProps {
 export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply, onOpenAuth, onViewProfile }) => {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
+  const [pasteCount, setPasteCount] = useState(0);
+  const [showPasteWarning, setShowPasteWarning] = useState(false);
 
   const handleSubmitReply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +25,24 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
     if (replyText.trim()) {
       onReply(post.id, replyText);
       setReplyText('');
+      setPasteCount(0);
+      setShowPasteWarning(false);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault(); // Block paste
+    
+    const newCount = pasteCount + 1;
+    setPasteCount(newCount);
+
+    if (newCount >= 3) {
+      setShowPasteWarning(true);
+      // Reset after a delay so they don't get stuck with the error forever
+      setTimeout(() => {
+        setPasteCount(0);
+        setShowPasteWarning(false);
+      }, 5000);
     }
   };
 
@@ -122,13 +142,23 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
              {currentUser ? (
                 <>
                   <img src={currentUser.avatar} className="w-8 h-8 rounded-full" alt="me" />
-                  <input 
-                    type="text" 
-                    placeholder="Escribe una respuesta..." 
-                    className="flex-1 bg-gray-50 border-0 rounded-full px-4 py-2 text-sm focus:ring-1 focus:ring-[#D97706] outline-none"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                  />
+                  <div className="flex-1 relative">
+                    {/* Anti-Paste Warning Overlay */}
+                    {showPasteWarning && (
+                      <div className="absolute -top-8 left-0 right-0 bg-red-500 text-white text-xs font-bold py-1.5 px-3 rounded-lg text-center z-20 animate-slide-up shadow-md flex items-center justify-center gap-2">
+                        <span>⚠️</span>
+                        <span>No, no, no — Ctrl + V no es permitido. No sea un robot y escriba.</span>
+                      </div>
+                    )}
+                    <input 
+                      type="text" 
+                      placeholder="Escribe una respuesta..." 
+                      className="w-full bg-gray-50 border-0 rounded-full px-4 py-2 text-sm focus:ring-1 focus:ring-[#D97706] outline-none"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onPaste={handlePaste}
+                    />
+                  </div>
                   <button 
                     type="submit" 
                     disabled={!replyText.trim()}
