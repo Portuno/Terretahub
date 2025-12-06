@@ -12,6 +12,7 @@ export const PublicLinkBio: React.FC = () => {
   const lastExtensionRef = useRef<string | null>(null);
   const isLoadingRef = useRef(false);
   const lastUpdatedAtRef = useRef<string | null>(null);
+  const queryAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     console.log('[PublicLinkBio] useEffect triggered', { extension, lastExtension: lastExtensionRef.current, isLoading: isLoadingRef.current });
@@ -26,10 +27,17 @@ export const PublicLinkBio: React.FC = () => {
         return;
       }
 
-      // Evitar múltiples cargas simultáneas
+      // Cancelar query anterior si existe
+      if (queryAbortControllerRef.current) {
+        console.warn('[PublicLinkBio] Cancelling previous query');
+        queryAbortControllerRef.current.abort();
+        queryAbortControllerRef.current = null;
+      }
+
+      // Resetear estado de carga si estaba bloqueado
       if (isLoadingRef.current) {
-        console.warn('[PublicLinkBio] Already loading, skipping');
-        return;
+        console.warn('[PublicLinkBio] Resetting stuck loading state');
+        isLoadingRef.current = false;
       }
 
       // Resetear refs al cambiar de extensión
@@ -40,26 +48,24 @@ export const PublicLinkBio: React.FC = () => {
         });
         lastExtensionRef.current = null;
         lastUpdatedAtRef.current = null;
-      }
-
-      // Si es la misma extensión que ya cargamos, no recargar
-      if (lastExtensionRef.current === extension && lastExtensionRef.current !== null) {
-        console.log('[PublicLinkBio] Same extension, skipping reload');
-        return;
+        // Limpiar estado anterior
+        setProfile(null);
+        setError(null);
       }
 
       lastExtensionRef.current = extension;
       isLoadingRef.current = true;
 
-      // Timeout de seguridad (10 segundos)
+      // Timeout de seguridad (20 segundos - más generoso para dar tiempo a la query)
       const timeoutId = setTimeout(() => {
         if (isLoadingRef.current) {
           console.error('[PublicLinkBio] Timeout: Loading took too long');
+          console.error('[PublicLinkBio] This might indicate a network or Supabase connection issue');
           setError('Tiempo de espera agotado. Por favor, recarga la página.');
           setLoading(false);
           isLoadingRef.current = false;
         }
-      }, 10000);
+      }, 20000);
 
       try {
         console.log('[PublicLinkBio] Setting loading to true');
@@ -68,19 +74,71 @@ export const PublicLinkBio: React.FC = () => {
 
         const customSlugLower = extension.toLowerCase();
         console.log('[PublicLinkBio] Querying Supabase for extension:', customSlugLower);
+        console.log('[PublicLinkBio] Supabase client check:', {
+          hasClient: !!supabase,
+          url: import.meta.env.VITE_SUPABASE_URL ? 'present' : 'missing',
+          key: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'present' : 'missing'
+        });
 
         // Query simple y directa, sin timeouts complejos que puedan interferir
-        const { data: linkBioProfile, error: linkBioError } = await supabase
-          .from('link_bio_profiles')
-          .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
-          .eq('custom_slug', customSlugLower)
-          .eq('is_published', true)
-          .maybeSingle();
+        console.log('[PublicLinkBio] Executing query...');
+        const queryStartTime = Date.now();
         
+        // Crear un nuevo AbortController para esta query
+        const abortController = new AbortController();
+        queryAbortControllerRef.current = abortController;
+        
+        let linkBioProfile, linkBioError;
+        try {
+          // Verificar si la query fue cancelada antes de ejecutarla
+          if (abortController.signal.aborted) {
+            console.warn('[PublicLinkBio] Query was aborted before execution');
+            return;
+          }
+
+          const result = await supabase
+            .from('link_bio_profiles')
+            .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
+            .eq('custom_slug', customSlugLower)
+            .eq('is_published', true)
+            .maybeSingle();
+          
+          // Verificar si la query fue cancelada después de ejecutarla
+          if (abortController.signal.aborted) {
+            console.warn('[PublicLinkBio] Query was aborted after execution');
+            return;
+          }
+          
+          linkBioProfile = result.data;
+          linkBioError = result.error;
+        } catch (queryErr: any) {
+          // Ignorar errores de abort
+          if (queryErr.name === 'AbortError' || abortController.signal.aborted) {
+            console.warn('[PublicLinkBio] Query was aborted');
+            return;
+          }
+          
+          console.error('[PublicLinkBio] Query threw exception:', queryErr);
+          linkBioError = { 
+            code: 'QUERY_EXCEPTION', 
+            message: queryErr.message || 'Error ejecutando la consulta',
+            details: queryErr.stack
+          };
+          linkBioProfile = null;
+        } finally {
+          // Limpiar el AbortController si esta query terminó
+          if (queryAbortControllerRef.current === abortController) {
+            queryAbortControllerRef.current = null;
+          }
+        }
+        
+        const queryDuration = Date.now() - queryStartTime;
         console.log('[PublicLinkBio] Query completed', {
+          duration: `${queryDuration}ms`,
           hasData: !!linkBioProfile,
           hasError: !!linkBioError,
-          errorCode: linkBioError?.code
+          errorCode: linkBioError?.code,
+          errorMessage: linkBioError?.message
         });
 
         clearTimeout(timeoutId);
@@ -152,11 +210,18 @@ export const PublicLinkBio: React.FC = () => {
       } catch (err: any) {
         clearTimeout(timeoutId);
         console.error('[PublicLinkBio] Exception caught:', err);
+        console.error('[PublicLinkBio] Error stack:', err.stack);
+        console.error('[PublicLinkBio] Error details:', {
+          name: err.name,
+          message: err.message,
+          cause: err.cause
+        });
         setError(err.message || 'Error al cargar el perfil');
         setLoading(false);
         isLoadingRef.current = false;
       } finally {
         console.log('[PublicLinkBio] Finally block - setting loading to false');
+        clearTimeout(timeoutId);
         setLoading(false);
         isLoadingRef.current = false;
       }
@@ -166,7 +231,11 @@ export const PublicLinkBio: React.FC = () => {
 
     // Cleanup: resetear refs al desmontar o cambiar extensión
     return () => {
-      console.log('[PublicLinkBio] Cleanup: resetting refs');
+      console.log('[PublicLinkBio] Cleanup: resetting refs and cancelling queries');
+      if (queryAbortControllerRef.current) {
+        queryAbortControllerRef.current.abort();
+        queryAbortControllerRef.current = null;
+      }
       isLoadingRef.current = false;
     };
   }, [extension]); // Solo ejecutar cuando cambie la extensión
