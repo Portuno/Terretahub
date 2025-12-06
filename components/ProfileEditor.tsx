@@ -162,6 +162,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const hasLoadedRef = useRef(false);
+  const isLoadingRef = useRef(false);
   
   // File input ref for avatar
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -179,35 +180,71 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
 
   // Cargar perfil desde Supabase solo al montar (una sola vez)
   useEffect(() => {
-    console.log('[ProfileEditor] useEffect triggered', { hasLoaded: hasLoadedRef.current, userId: user.id });
+    console.log('[ProfileEditor] useEffect triggered', { 
+      hasLoaded: hasLoadedRef.current, 
+      isLoading: isLoadingRef.current,
+      userId: user.id 
+    });
     
-    // Solo cargar si no se ha cargado antes
-    if (hasLoadedRef.current) {
-      console.log('[ProfileEditor] Already loaded, skipping');
+    // Solo cargar si no se ha cargado antes y no está cargando
+    if (hasLoadedRef.current || isLoadingRef.current) {
+      console.log('[ProfileEditor] Already loaded or loading, skipping', { 
+        hasLoaded: hasLoadedRef.current, 
+        isLoading: isLoadingRef.current 
+      });
       return;
     }
+    
     hasLoadedRef.current = true;
+    isLoadingRef.current = true;
+
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isMounted = true;
 
     const loadProfile = async () => {
-      // Timeout de seguridad (10 segundos)
-      const timeoutId = setTimeout(() => {
-        console.error('[ProfileEditor] Timeout: Loading took too long');
-        setLoading(false);
-      }, 10000);
+      // Timeout de seguridad (8 segundos)
+      timeoutId = setTimeout(() => {
+        if (isMounted) {
+          console.error('[ProfileEditor] Timeout: Loading took too long');
+          setLoading(false);
+        }
+      }, 8000);
 
       try {
         console.log('[ProfileEditor] Setting loading to true');
-        setLoading(true);
+        if (isMounted) setLoading(true);
         
         console.log('[ProfileEditor] Querying Supabase', { userId: user.id, username: user.username });
-        const { data: existingProfile, error } = await supabase
+        
+        // Query con timeout
+        const queryPromise = supabase
           .from('link_bio_profiles')
           .select('*')
           .eq('user_id', user.id)
           .eq('username', user.username)
           .maybeSingle();
 
-        clearTimeout(timeoutId);
+        const queryTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Query timeout')), 7000)
+        );
+
+        let existingProfile, error;
+        try {
+          const result = await Promise.race([queryPromise, queryTimeout]) as any;
+          existingProfile = result?.data;
+          error = result?.error;
+        } catch (timeoutErr: any) {
+          console.error('[ProfileEditor] Query timeout:', timeoutErr);
+          if (isMounted) {
+            setLoading(false);
+            alert('La consulta está tardando demasiado. Por favor, recarga la página.');
+          }
+          return;
+        }
+
+        if (timeoutId) clearTimeout(timeoutId);
+
+        if (!isMounted) return;
 
         console.log('[ProfileEditor] Supabase response', { 
           hasData: !!existingProfile, 
@@ -251,12 +288,24 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
       } catch (err) {
         console.error('[ProfileEditor] Exception caught:', err);
       } finally {
-        console.log('[ProfileEditor] Finally block - setting loading to false');
-        setLoading(false);
+        if (isMounted) {
+          console.log('[ProfileEditor] Finally block - setting loading to false');
+          setLoading(false);
+        }
+        isLoadingRef.current = false;
+        if (timeoutId) clearTimeout(timeoutId);
       }
     };
 
     loadProfile();
+
+    // Cleanup
+    return () => {
+      console.log('[ProfileEditor] Cleanup: unmounting');
+      isMounted = false;
+      isLoadingRef.current = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Solo ejecutar una vez al montar
 

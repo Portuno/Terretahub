@@ -91,38 +91,96 @@ export const PublicLinkBio: React.FC = () => {
           return;
         }
 
-        // Buscar perfil por custom_slug (extensión) con timeout
-        console.log('[PublicLinkBio] Starting profile query...');
-        const queryStartTime = Date.now();
-        
-        // Intentar primero con una query más simple (solo campos necesarios)
-        let queryPromise = supabase
-          .from('link_bio_profiles')
-          .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at')
-          .eq('custom_slug', customSlugLower)
-          .eq('is_published', true)
-          .maybeSingle();
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Query timeout: La consulta tardó más de 8 segundos')), 8000)
-        );
-
-        let linkBioProfile, linkBioError;
+        // Test de conectividad muy simple
+        console.log('[PublicLinkBio] Testing basic connectivity...');
         try {
-          const result = await Promise.race([queryPromise, timeoutPromise]) as any;
-          linkBioProfile = result?.data;
-          linkBioError = result?.error;
-        } catch (timeoutError: any) {
-          console.error('[PublicLinkBio] Query timeout:', timeoutError);
-          console.error('[PublicLinkBio] Supabase config check:', {
-            url: import.meta.env.VITE_SUPABASE_URL ? 'present' : 'missing',
-            key: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'present' : 'missing'
+          const basicTest = await Promise.race([
+            supabase.from('link_bio_profiles').select('id').limit(1),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Basic test timeout')), 3000))
+          ]) as any;
+          
+          console.log('[PublicLinkBio] Basic connectivity test', {
+            hasError: !!basicTest?.error,
+            errorCode: basicTest?.error?.code,
+            canConnect: !basicTest?.error || basicTest.error.code === 'PGRST116'
           });
-          setError('La consulta está tardando demasiado. Esto puede ser un problema de red o de configuración. Intenta recargar la página.');
+        } catch (testErr: any) {
+          console.error('[PublicLinkBio] Basic connectivity test failed:', testErr);
+          setError('No se pudo conectar con Supabase. Verifica tu conexión a internet.');
           setLoading(false);
           isLoadingRef.current = false;
           clearTimeout(timeoutId);
           return;
+        }
+
+        // Buscar perfil por custom_slug (extensión) con timeout
+        console.log('[PublicLinkBio] Starting profile query...');
+        const queryStartTime = Date.now();
+        
+        // Intentar primero con una query simple sin maybeSingle para evitar problemas
+        let linkBioProfile = null;
+        let linkBioError = null;
+        
+        try {
+          console.log('[PublicLinkBio] Attempting query with .limit(1)...');
+          const queryPromise = supabase
+            .from('link_bio_profiles')
+            .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at')
+            .eq('custom_slug', customSlugLower)
+            .eq('is_published', true)
+            .limit(1);
+
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Query timeout: La consulta tardó más de 8 segundos')), 8000)
+          );
+
+          const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+          
+          if (result?.error) {
+            linkBioError = result.error;
+          } else if (result?.data && result.data.length > 0) {
+            linkBioProfile = result.data[0];
+          } else {
+            // No encontrado
+            linkBioProfile = null;
+          }
+        } catch (timeoutError: any) {
+          console.error('[PublicLinkBio] Query timeout:', timeoutError);
+          
+          // Intentar una query alternativa más simple sin el filtro is_published
+          console.log('[PublicLinkBio] Trying fallback query without is_published filter...');
+          try {
+            const fallbackQuery = supabase
+              .from('link_bio_profiles')
+              .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
+              .eq('custom_slug', customSlugLower)
+              .limit(1);
+            
+            const fallbackResult = await Promise.race([
+              fallbackQuery,
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Fallback timeout')), 5000))
+            ]) as any;
+            
+            if (fallbackResult?.data && fallbackResult.data.length > 0) {
+              const profile = fallbackResult.data[0];
+              if (profile.is_published) {
+                linkBioProfile = profile;
+                linkBioError = null;
+                console.log('[PublicLinkBio] Fallback query succeeded');
+              } else {
+                linkBioError = { code: 'NOT_PUBLISHED', message: 'Perfil no publicado' };
+              }
+            } else {
+              linkBioError = { code: 'PGRST116', message: 'Perfil no encontrado' };
+            }
+          } catch (fallbackError: any) {
+            console.error('[PublicLinkBio] Fallback query also failed:', fallbackError);
+            setError('No se pudo conectar con la base de datos. Verifica tu conexión a internet o intenta más tarde.');
+            setLoading(false);
+            isLoadingRef.current = false;
+            clearTimeout(timeoutId);
+            return;
+          }
         }
 
         const queryDuration = Date.now() - queryStartTime;
