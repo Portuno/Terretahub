@@ -891,12 +891,12 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
                 <div className="text-center">
                   <p className="text-xs text-gray-500 mb-1">Tu perfil está publicado en:</p>
                   <a 
-                    href={`/p/${user.username}/${customSlug}`}
+                    href={`/p/${customSlug}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-[#D97706] hover:underline font-mono"
                   >
-                    terretahub.com/p/{user.username}/{customSlug}
+                    terretahub.com/p/{customSlug}
                   </a>
                 </div>
               )}
@@ -909,7 +909,18 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
           isOpen={isPublishModalOpen}
           onClose={() => setIsPublishModalOpen(false)}
           onPublish={async (extension: string) => {
-            // Primero guardar el perfil con la extensión
+            // Verificar si el slug ya existe (debe ser único globalmente)
+            const { data: existingSlug } = await supabase
+              .from('link_bio_profiles')
+              .select('id, user_id')
+              .eq('custom_slug', extension.toLowerCase())
+              .maybeSingle();
+
+            if (existingSlug && existingSlug.user_id !== user.id) {
+              throw new Error('Esta extensión ya está en uso. Por favor, elige otra.');
+            }
+
+            // Preparar los datos del perfil con la extensión
             const profileData = {
               user_id: user.id,
               username: profile.username,
@@ -920,19 +931,8 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
               blocks: profile.blocks,
               theme: profile.theme,
               is_published: true,
-              custom_slug: extension
+              custom_slug: extension.toLowerCase()
             };
-
-            // Verificar si el slug ya existe
-            const { data: existingSlug } = await supabase
-              .from('link_bio_profiles')
-              .select('id')
-              .eq('custom_slug', extension)
-              .maybeSingle();
-
-            if (existingSlug) {
-              throw new Error('Esta extensión ya está en uso. Por favor, elige otra.');
-            }
 
             // Guardar o actualizar
             const { data: existing } = await supabase
@@ -961,7 +961,6 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
             setIsPublished(true);
             setCustomSlug(extension);
           }}
-          username={user.username}
           currentExtension={customSlug || undefined}
         />
       </div>

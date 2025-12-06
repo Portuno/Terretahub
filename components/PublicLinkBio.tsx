@@ -5,15 +5,15 @@ import { LinkBioProfile } from '../types';
 import { ProfileRenderer } from './ProfileEditor';
 
 export const PublicLinkBio: React.FC = () => {
-  const { username, extension } = useParams<{ username: string; extension?: string }>();
+  const { extension } = useParams<{ extension: string }>();
   const [profile, setProfile] = useState<LinkBioProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!username) {
-        setError('Username no proporcionado');
+      if (!extension) {
+        setError('Extensión no proporcionada');
         setLoading(false);
         return;
       }
@@ -22,33 +22,13 @@ export const PublicLinkBio: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        let linkBioProfile = null;
-        let linkBioError = null;
-
-        // Si hay extensión, buscar por custom_slug y username
-        if (extension) {
-          const result = await supabase
-            .from('link_bio_profiles')
-            .select('*')
-            .eq('custom_slug', extension.toLowerCase())
-            .eq('username', username.toLowerCase())
-            .eq('is_published', true)
-            .maybeSingle();
-          
-          linkBioProfile = result.data;
-          linkBioError = result.error;
-        } else {
-          // Si no hay extensión, buscar por username (perfil publicado, puede tener o no custom_slug)
-          const result = await supabase
-            .from('link_bio_profiles')
-            .select('*')
-            .eq('username', username.toLowerCase())
-            .eq('is_published', true)
-            .maybeSingle();
-          
-          linkBioProfile = result.data;
-          linkBioError = result.error;
-        }
+        // Buscar perfil por custom_slug (extensión)
+        const { data: linkBioProfile, error: linkBioError } = await supabase
+          .from('link_bio_profiles')
+          .select('*')
+          .eq('custom_slug', extension.toLowerCase())
+          .eq('is_published', true)
+          .maybeSingle();
 
         if (linkBioError && linkBioError.code !== 'PGRST116') {
           // Error diferente a "no encontrado"
@@ -59,28 +39,7 @@ export const PublicLinkBio: React.FC = () => {
         }
 
         if (!linkBioProfile) {
-          // No se encontró perfil publicado, intentar obtener perfil básico
-          const { data: basicProfile, error: basicError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('username', username.toLowerCase())
-            .single();
-
-          if (basicError || !basicProfile) {
-            setError('Perfil no encontrado o no está publicado');
-            setLoading(false);
-            return;
-          }
-
-          // Si hay extensión pero no se encontró perfil, el perfil no está publicado con esa extensión
-          if (extension) {
-            setError('Perfil no encontrado con esa extensión');
-            setLoading(false);
-            return;
-          }
-
-          // Si no hay extensión y no hay perfil publicado, mostrar mensaje
-          setError('Este perfil aún no está publicado');
+          setError('Perfil no encontrado o no está publicado');
           setLoading(false);
           return;
         }

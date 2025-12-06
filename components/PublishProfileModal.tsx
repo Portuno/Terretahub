@@ -5,7 +5,6 @@ interface PublishProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPublish: (extension: string) => Promise<void>;
-  username: string;
   currentExtension?: string;
 }
 
@@ -13,7 +12,6 @@ export const PublishProfileModal: React.FC<PublishProfileModalProps> = ({
   isOpen,
   onClose,
   onPublish,
-  username,
   currentExtension
 }) => {
   const [extension, setExtension] = useState(currentExtension || '');
@@ -26,8 +24,8 @@ export const PublishProfileModal: React.FC<PublishProfileModalProps> = ({
     e.preventDefault();
     setError('');
     
-    // Validar extensión
-    const cleanExtension = extension.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    // Validar extensión - permitir letras, números, guiones y guiones bajos
+    const cleanExtension = extension.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     
     if (!cleanExtension) {
       setError('La extensión no puede estar vacía');
@@ -39,8 +37,8 @@ export const PublishProfileModal: React.FC<PublishProfileModalProps> = ({
       return;
     }
 
-    if (cleanExtension.length > 30) {
-      setError('La extensión no puede tener más de 30 caracteres');
+    if (cleanExtension.length > 50) {
+      setError('La extensión no puede tener más de 50 caracteres');
       return;
     }
 
@@ -56,7 +54,8 @@ export const PublishProfileModal: React.FC<PublishProfileModalProps> = ({
   };
 
   const handleExtensionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    // Permitir letras, números, guiones y guiones bajos
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '');
     setExtension(value);
     setError('');
   };
@@ -100,22 +99,22 @@ export const PublishProfileModal: React.FC<PublishProfileModalProps> = ({
               </label>
               <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-3">
                 <span className="text-sm text-gray-600 font-mono whitespace-nowrap">
-                  www.terretahub.com/p/{username}/
+                  www.terretahub.com/p/
                 </span>
                 <div className="flex-1 flex items-center">
                   <input
                     type="text"
                     value={extension}
                     onChange={handleExtensionChange}
-                    placeholder="extension"
+                    placeholder="tu-extension"
                     className="flex-1 bg-transparent border-none outline-none text-sm font-mono text-terreta-dark placeholder-gray-400"
-                    maxLength={30}
-                    pattern="[a-z0-9-]+"
+                    maxLength={50}
+                    pattern="[a-z0-9_-]+"
                   />
                 </div>
               </div>
               <p className="text-xs text-gray-400">
-                Solo letras minúsculas, números y guiones. Mínimo 3 caracteres.
+                Solo letras minúsculas, números, guiones y guiones bajos. Mínimo 3 caracteres.
               </p>
             </div>
 
