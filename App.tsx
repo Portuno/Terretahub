@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { LandingPage } from './components/LandingPage';
 import { Dashboard } from './components/Dashboard';
 import { AuthModal } from './components/AuthModal';
-import { AppView, AuthUser } from './types';
+import { PublicLinkBio } from './components/PublicLinkBio';
+import { AuthUser } from './types';
 import { supabase } from './lib/supabase';
 
-export default function App() {
-  const [currentView, setCurrentView] = useState<AppView>('landing');
+const AppContent: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   // Check for session persistence on mount
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         setUser(null);
-        setCurrentView('landing');
+        navigate('/');
       } else if (event === 'SIGNED_IN' && session?.user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -66,31 +68,54 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const handleLoginSuccess = (loggedInUser: AuthUser) => {
     setUser(loggedInUser);
     setIsAuthModalOpen(false);
-    setCurrentView('app'); // Redirect to app if logging in from landing
+    navigate('/app');
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    setCurrentView('landing');
+    navigate('/');
+  };
+
+  const handleEnterApp = () => {
+    if (user) {
+      navigate('/app');
+    } else {
+      setIsAuthModalOpen(true);
+    }
   };
 
   return (
     <>
-      {currentView === 'landing' ? (
-        <LandingPage onEnterApp={() => setCurrentView('app')} />
-      ) : (
-        <Dashboard 
-          user={user} 
-          onOpenAuth={() => setIsAuthModalOpen(true)} 
-          onLogout={handleLogout}
+      <Routes>
+        <Route 
+          path="/" 
+          element={<LandingPage onEnterApp={handleEnterApp} />} 
         />
-      )}
+        <Route 
+          path="/app" 
+          element={
+            <Dashboard 
+              user={user} 
+              onOpenAuth={() => setIsAuthModalOpen(true)} 
+              onLogout={handleLogout}
+            />
+          } 
+        />
+        <Route 
+          path="/p/:username" 
+          element={<PublicLinkBio />} 
+        />
+        <Route 
+          path="*" 
+          element={<Navigate to="/" replace />} 
+        />
+      </Routes>
 
       <AuthModal 
         isOpen={isAuthModalOpen} 
@@ -98,5 +123,13 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
       />
     </>
+  );
+};
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
