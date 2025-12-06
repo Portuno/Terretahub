@@ -15,26 +15,40 @@ const AppContent: React.FC = () => {
   // Check for session persistence on mount
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        // Obtener perfil del usuario
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (!error && profile) {
-          const safeUser: AuthUser = {
-            id: profile.id,
-            name: profile.name,
-            username: profile.username,
-            email: profile.email,
-            avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
-          };
-          setUser(safeUser);
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Error al obtener sesión:', sessionError);
+          return;
         }
+        
+        if (session?.user) {
+          // Obtener perfil del usuario
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Error al cargar perfil:', profileError);
+            return;
+          }
+
+          if (profile) {
+            const safeUser: AuthUser = {
+              id: profile.id,
+              name: profile.name,
+              username: profile.username,
+              email: profile.email,
+              avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+            };
+            setUser(safeUser);
+          }
+        }
+      } catch (err) {
+        console.error('Error en checkSession:', err);
       }
     };
 
@@ -42,26 +56,35 @@ const AppContent: React.FC = () => {
 
     // Escuchar cambios en la autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        setUser(null);
-        // No redirigir automáticamente, permitir que el usuario se quede en /app
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+      try {
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+          // No redirigir automáticamente, permitir que el usuario se quede en /app
+        } else if (event === 'SIGNED_IN' && session?.user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
 
-        if (profile) {
-          const safeUser: AuthUser = {
-            id: profile.id,
-            name: profile.name,
-            username: profile.username,
-            email: profile.email,
-            avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
-          };
-          setUser(safeUser);
+          if (profileError) {
+            console.error('Error al cargar perfil en onAuthStateChange:', profileError);
+            return;
+          }
+
+          if (profile) {
+            const safeUser: AuthUser = {
+              id: profile.id,
+              name: profile.name,
+              username: profile.username,
+              email: profile.email,
+              avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+            };
+            setUser(safeUser);
+          }
         }
+      } catch (err) {
+        console.error('Error en onAuthStateChange:', err);
       }
     });
 

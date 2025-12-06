@@ -228,42 +228,54 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
         theme: profile.theme
       };
 
-      // Intentar actualizar primero
+      console.log('Guardando perfil:', profileData);
+
+      // Intentar buscar si existe
       const { data: existing, error: checkError } = await supabase
         .from('link_bio_profiles')
         .select('id')
         .eq('user_id', user.id)
-        .eq('username', user.username)
-        .single();
+        .maybeSingle();
 
-      if (checkError && checkError.code === 'PGRST116') {
-        // No existe, crear nuevo
-        const { error: insertError } = await supabase
-          .from('link_bio_profiles')
-          .insert(profileData);
-
-        if (insertError) {
-          throw new Error(insertError.message || 'Error al guardar el perfil');
-        }
-      } else if (!checkError && existing) {
-        // Existe, actualizar
-        const { error: updateError } = await supabase
-          .from('link_bio_profiles')
-          .update(profileData)
-          .eq('user_id', user.id)
-          .eq('username', user.username);
-
-        if (updateError) {
-          throw new Error(updateError.message || 'Error al actualizar el perfil');
-        }
-      } else if (checkError) {
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error al verificar perfil:', checkError);
         throw new Error(checkError.message || 'Error al verificar el perfil');
       }
 
-      // Mostrar mensaje de éxito (opcional)
+      if (existing) {
+        // Existe, actualizar
+        console.log('Actualizando perfil existente');
+        const { data, error: updateError } = await supabase
+          .from('link_bio_profiles')
+          .update(profileData)
+          .eq('user_id', user.id)
+          .eq('username', user.username)
+          .select();
+
+        if (updateError) {
+          console.error('Error al actualizar:', updateError);
+          throw new Error(updateError.message || 'Error al actualizar el perfil');
+        }
+        console.log('Perfil actualizado:', data);
+      } else {
+        // No existe, crear nuevo
+        console.log('Creando nuevo perfil');
+        const { data, error: insertError } = await supabase
+          .from('link_bio_profiles')
+          .insert(profileData)
+          .select();
+
+        if (insertError) {
+          console.error('Error al insertar:', insertError);
+          throw new Error(insertError.message || 'Error al guardar el perfil');
+        }
+        console.log('Perfil creado:', data);
+      }
+
+      // Mostrar mensaje de éxito
       alert('Perfil guardado correctamente');
     } catch (error: any) {
-      console.error('Error al guardar:', error);
+      console.error('Error completo al guardar:', error);
       alert(error.message || 'Error al guardar el perfil. Intenta nuevamente.');
     } finally {
       setSaving(false);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Lock, ArrowRight } from 'lucide-react';
 import { AuthUser } from '../types';
 import { supabase } from '../lib/supabase';
@@ -20,12 +20,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // Resetear estado cuando se cierra el modal
+  useEffect(() => {
+    if (!isOpen) {
+      setLoading(false);
+      setError('');
+      setName('');
+      setUsername('');
+      setEmail('');
+      setPassword('');
+      setIsRegistering(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // Resetear el estado del formulario si hay un error previo
+    if (error) {
+      setError('');
+    }
 
     try {
       if (isRegistering) {
@@ -147,8 +165,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         onClose();
       }
     } catch (err: any) {
+      console.error('Error en autenticación:', err);
       setError(err.message || 'Ocurrió un error. Intenta nuevamente.');
     } finally {
+      // Asegurarse de que siempre se resetee el loading
       setLoading(false);
     }
   };
