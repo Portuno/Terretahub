@@ -161,6 +161,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   const [customSlug, setCustomSlug] = useState<string | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const hasLoadedRef = useRef(false);
   
   // File input ref for avatar
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -176,14 +177,16 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   const [gradientStart, setGradientStart] = useState(isGradient ? getGradientColors(profile.theme.bgColor)[0] : '#ffffff');
   const [gradientEnd, setGradientEnd] = useState(isGradient ? getGradientColors(profile.theme.bgColor)[1] : '#000000');
 
-  // Cargar perfil desde Supabase al montar
+  // Cargar perfil desde Supabase solo al montar (una sola vez)
   useEffect(() => {
+    // Solo cargar si no se ha cargado antes
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
     const loadProfile = async () => {
       try {
         setLoading(true);
         
-        // Agregar timestamp para evitar caché del navegador
-        const timestamp = Date.now();
         const { data: existingProfile, error } = await supabase
           .from('link_bio_profiles')
           .select('*')
@@ -224,7 +227,8 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
     };
 
     loadProfile();
-  }, [user.id, user.username]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Solo ejecutar una vez al montar
 
   const handleSave = async () => {
     setSaving(true);
@@ -292,31 +296,23 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
         
         console.log('Perfil actualizado:', data);
         
-        // Actualizar el estado local con los datos guardados
+        // Actualizar el estado local con los datos guardados directamente
+        // No necesitamos recargar porque ya tenemos los datos frescos en 'data'
         if (data) {
           setIsPublished(data.is_published || false);
           setCustomSlug(data.custom_slug || null);
           
-          // Recargar el perfil desde la base de datos para evitar problemas de caché
-          const { data: freshData } = await supabase
-            .from('link_bio_profiles')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('username', user.username)
-            .maybeSingle();
-
-          if (freshData) {
-            const reloadedProfile: LinkBioProfile = {
-              username: freshData.username,
-              displayName: freshData.display_name,
-              bio: freshData.bio || '',
-              avatar: freshData.avatar || user.avatar,
-              socials: (freshData.socials as any) || {},
-              blocks: (freshData.blocks as any) || [],
-              theme: (freshData.theme as any) || getInitialProfile(user).theme
-            };
-            setProfile(reloadedProfile);
-          }
+          // Actualizar el perfil con los datos que acabamos de guardar
+          const updatedProfile: LinkBioProfile = {
+            username: data.username,
+            displayName: data.display_name,
+            bio: data.bio || '',
+            avatar: data.avatar || user.avatar,
+            socials: (data.socials as any) || {},
+            blocks: (data.blocks as any) || [],
+            theme: (data.theme as any) || getInitialProfile(user).theme
+          };
+          setProfile(updatedProfile);
         }
       } else {
         // No existe, crear nuevo
