@@ -30,53 +30,62 @@ export const PublicLinkBio: React.FC = () => {
           .single();
 
         if (linkBioError) {
-          // Si no existe el perfil de link-in-bio, intentar obtener el perfil básico
-          const { data: basicProfile, error: basicError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('username', username.toLowerCase())
-            .single();
+          // Verificar si el error es porque no existe el perfil (PGRST116) o es otro error
+          if (linkBioError.code === 'PGRST116') {
+            // No existe el perfil de link-in-bio, intentar obtener el perfil básico
+            const { data: basicProfile, error: basicError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('username', username.toLowerCase())
+              .single();
 
-          if (basicError || !basicProfile) {
-            setError('Perfil no encontrado');
+            if (basicError || !basicProfile) {
+              setError('Perfil no encontrado');
+              setLoading(false);
+              return;
+            }
+
+            // Crear un perfil básico desde el perfil de usuario
+            const defaultProfile: LinkBioProfile = {
+              username: basicProfile.username,
+              displayName: basicProfile.name,
+              bio: 'Explorador en Terreta Hub',
+              avatar: basicProfile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${basicProfile.username}`,
+              socials: {},
+              blocks: [
+                { 
+                  id: '1', 
+                  type: 'text', 
+                  content: `Bienvenido al perfil de ${basicProfile.name}.`, 
+                  isVisible: true 
+                }
+              ],
+              theme: {
+                id: 'terreta',
+                name: 'Terreta Original',
+                bgType: 'color',
+                bgColor: '#F9F6F0',
+                textColor: '#3E2723',
+                buttonStyle: 'solid',
+                buttonColor: '#3E2723',
+                buttonTextColor: '#FFFFFF',
+                font: 'serif'
+              }
+            };
+
+            setProfile(defaultProfile);
+            setLoading(false);
+            return;
+          } else {
+            // Otro error
+            console.error('Error al buscar perfil:', linkBioError);
+            setError('Error al cargar el perfil');
             setLoading(false);
             return;
           }
-
-          // Crear un perfil básico desde el perfil de usuario
-          const defaultProfile: LinkBioProfile = {
-            username: basicProfile.username,
-            displayName: basicProfile.name,
-            bio: 'Explorador en Terreta Hub',
-            avatar: basicProfile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${basicProfile.username}`,
-            socials: {},
-            blocks: [
-              { 
-                id: '1', 
-                type: 'text', 
-                content: `Bienvenido al perfil de ${basicProfile.name}.`, 
-                isVisible: true 
-              }
-            ],
-            theme: {
-              id: 'terreta',
-              name: 'Terreta Original',
-              bgType: 'color',
-              bgColor: '#F9F6F0',
-              textColor: '#3E2723',
-              buttonStyle: 'solid',
-              buttonColor: '#3E2723',
-              buttonTextColor: '#FFFFFF',
-              font: 'serif'
-            }
-          };
-
-          setProfile(defaultProfile);
-          setLoading(false);
-          return;
         }
 
-        // Convertir el perfil de la base de datos al formato esperado
+        // Si encontramos el perfil de link-in-bio, convertir al formato esperado
         const formattedProfile: LinkBioProfile = {
           username: linkBioProfile.username,
           displayName: linkBioProfile.display_name,

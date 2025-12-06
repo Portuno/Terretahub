@@ -7,6 +7,7 @@ import {
   Images
 } from 'lucide-react';
 import { AuthUser, LinkBioProfile, BioBlock, BioTheme } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface ProfileEditorProps {
   user: AuthUser;
@@ -149,14 +150,11 @@ const HexColorPicker: React.FC<{
 
 
 export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
-  const [profile, setProfile] = useState<LinkBioProfile>(() => {
-    const saved = localStorage.getItem(`profile_${user.id}`);
-    return saved ? JSON.parse(saved) : getInitialProfile(user);
-  });
-
+  const [profile, setProfile] = useState<LinkBioProfile>(getInitialProfile(user));
   const [activeTab, setActiveTab] = useState<'content' | 'appearance' | 'stats'>('content');
   const [saving, setSaving] = useState(false);
   const [draggedBlockIndex, setDraggedBlockIndex] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
   
   // File input ref for avatar
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -172,15 +170,104 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   const [gradientStart, setGradientStart] = useState(isGradient ? getGradientColors(profile.theme.bgColor)[0] : '#ffffff');
   const [gradientEnd, setGradientEnd] = useState(isGradient ? getGradientColors(profile.theme.bgColor)[1] : '#000000');
 
-  // Auto-save effect
+  // Cargar perfil desde Supabase al montar
   useEffect(() => {
-    localStorage.setItem(`profile_${user.id}`, JSON.stringify(profile));
-  }, [profile, user.id]);
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        const { data: existingProfile, error } = await supabase
+          .from('link_bio_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('username', user.username)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          // PGRST116 es "no rows returned", que es esperado si no existe
+          console.error('Error al cargar perfil:', error);
+        }
+
+        if (existingProfile) {
+          // Convertir el perfil de la base de datos al formato esperado
+          const loadedProfile: LinkBioProfile = {
+            username: existingProfile.username,
+            displayName: existingProfile.display_name,
+            bio: existingProfile.bio || '',
+            avatar: existingProfile.avatar || user.avatar,
+            socials: (existingProfile.socials as any) || {},
+            blocks: (existingProfile.blocks as any) || [],
+            theme: (existingProfile.theme as any) || getInitialProfile(user).theme
+          };
+          setProfile(loadedProfile);
+        } else {
+          // Si no existe, usar el perfil inicial
+          setProfile(getInitialProfile(user));
+        }
+      } catch (err) {
+        console.error('Error al cargar perfil:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user.id, user.username]);
 
   const handleSave = async () => {
     setSaving(true);
-    await new Promise(r => setTimeout(r, 800)); // Fake network
-    setSaving(false);
+    try {
+      // Preparar los datos para Supabase
+      const profileData = {
+        user_id: user.id,
+        username: profile.username,
+        display_name: profile.displayName,
+        bio: profile.bio,
+        avatar: profile.avatar,
+        socials: profile.socials,
+        blocks: profile.blocks,
+        theme: profile.theme
+      };
+
+      // Intentar actualizar primero
+      const { data: existing, error: checkError } = await supabase
+        .from('link_bio_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('username', user.username)
+        .single();
+
+      if (checkError && checkError.code === 'PGRST116') {
+        // No existe, crear nuevo
+        const { error: insertError } = await supabase
+          .from('link_bio_profiles')
+          .insert(profileData);
+
+        if (insertError) {
+          throw new Error(insertError.message || 'Error al guardar el perfil');
+        }
+      } else if (!checkError && existing) {
+        // Existe, actualizar
+        const { error: updateError } = await supabase
+          .from('link_bio_profiles')
+          .update(profileData)
+          .eq('user_id', user.id)
+          .eq('username', user.username);
+
+        if (updateError) {
+          throw new Error(updateError.message || 'Error al actualizar el perfil');
+        }
+      } else if (checkError) {
+        throw new Error(checkError.message || 'Error al verificar el perfil');
+      }
+
+      // Mostrar mensaje de éxito (opcional)
+      alert('Perfil guardado correctamente');
+    } catch (error: any) {
+      console.error('Error al guardar:', error);
+      alert(error.message || 'Error al guardar el perfil. Intenta nuevamente.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,6 +377,17 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   const handleDragEnd = () => {
     setDraggedBlockIndex(null);
   };
+
+  if (loading) {
+    return (
+      <div className="h-[calc(100vh-80px)] flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97706] mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando perfil...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-80px)] flex flex-col lg:flex-row bg-gray-50 overflow-hidden">
