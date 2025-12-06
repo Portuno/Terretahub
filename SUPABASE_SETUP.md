@@ -64,14 +64,21 @@ Ve a **Table Editor** en Supabase y verifica que todas las tablas se hayan cread
 
 ### Email Auth (ya configurado por defecto)
 
-Supabase ya tiene autenticación por email habilitada por defecto. No necesitas configuración adicional.
+Supabase ya tiene autenticación por email habilitada por defecto. 
 
-### Opcional: Configurar Email Templates
+### ⚠️ Confirmación de Email
 
-Si quieres personalizar los emails de confirmación:
+**IMPORTANTE**: Por defecto, Supabase requiere que los usuarios confirmen su email antes de poder iniciar sesión.
 
-1. Ve a **Authentication** → **Email Templates**
-2. Personaliza los templates según tus necesidades
+**Para desarrollo/testing (deshabilitar confirmación)**:
+1. Ve a Supabase Dashboard → **Authentication** → **Settings**
+2. En la sección **"Email Auth"**, desactiva **"Enable email confirmations"**
+3. Guarda los cambios
+
+**Para producción (mantener confirmación)**:
+- Los usuarios recibirán un email de confirmación al registrarse
+- Deben hacer clic en el enlace del email antes de poder iniciar sesión
+- Puedes personalizar los templates en **Authentication** → **Email Templates**
 
 ## 🚀 Despliegue en Vercel
 
@@ -116,6 +123,18 @@ Después de configurar todo:
 ### Error: "relation 'profiles' does not exist"
 - Asegúrate de haber ejecutado el script SQL en Supabase
 - Verifica que todas las tablas se hayan creado en Table Editor
+
+### Error 400: "Credenciales incorrectas" o "Email not confirmed"
+- **Si el email no está confirmado**: Por defecto, Supabase requiere confirmación de email. Tienes dos opciones:
+  1. **Confirmar el email**: Revisa tu bandeja de entrada y haz clic en el enlace de confirmación
+  2. **Deshabilitar confirmación de email** (solo para desarrollo):
+     - Ve a Supabase Dashboard → Authentication → Settings
+     - En "Email Auth", desactiva "Enable email confirmations"
+     - Guarda los cambios
+- **Si las credenciales son correctas pero sigue fallando**:
+  - Verifica que el email y contraseña sean exactamente los mismos (sin espacios)
+  - Asegúrate de que el usuario exista en la tabla `auth.users` de Supabase
+  - Revisa la consola del navegador para ver el error completo de Supabase
 
 ### Error: "new row violates row-level security policy"
 - Verifica que las políticas RLS estén activas

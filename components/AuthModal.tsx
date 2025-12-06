@@ -104,7 +104,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         });
 
         if (authError) {
-          throw new Error('Credenciales incorrectas.');
+          // Mostrar el mensaje de error real de Supabase
+          let errorMessage = 'Credenciales incorrectas.';
+          
+          if (authError.message.includes('Email not confirmed')) {
+            errorMessage = 'Por favor, confirma tu email antes de iniciar sesión. Revisa tu bandeja de entrada.';
+          } else if (authError.message.includes('Invalid login credentials')) {
+            errorMessage = 'Email o contraseña incorrectos.';
+          } else if (authError.message.includes('User not found')) {
+            errorMessage = 'No existe una cuenta con este email.';
+          } else if (authError.message) {
+            errorMessage = authError.message;
+          }
+          
+          throw new Error(errorMessage);
         }
 
         if (!authData.user) {
