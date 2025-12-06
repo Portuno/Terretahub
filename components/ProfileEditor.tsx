@@ -184,7 +184,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
           .select('*')
           .eq('user_id', user.id)
           .eq('username', user.username)
-          .single();
+          .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
           // PGRST116 es "no rows returned", que es esperado si no existe
@@ -224,8 +224,23 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Primero verificar si existe un perfil para preservar is_published y custom_slug
+      const { data: existing, error: checkError } = await supabase
+        .from('link_bio_profiles')
+        .select('id, is_published, custom_slug')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error al verificar perfil:', checkError);
+        alert('Error al verificar el perfil: ' + (checkError.message || 'Error desconocido'));
+        setSaving(false);
+        return;
+      }
+
       // Preparar los datos para Supabase
-      const profileData = {
+      // Si existe un perfil publicado, preservar is_published y custom_slug
+      const profileData: any = {
         user_id: user.id,
         username: profile.username,
         display_name: profile.displayName,
@@ -234,23 +249,11 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
         socials: profile.socials,
         blocks: profile.blocks,
         theme: profile.theme,
-        is_published: isPublished,
-        custom_slug: customSlug
+        is_published: existing && existing.is_published ? existing.is_published : isPublished,
+        custom_slug: existing && existing.custom_slug ? existing.custom_slug : customSlug
       };
 
       console.log('Guardando perfil:', profileData);
-
-      // Intentar buscar si existe
-      const { data: existing, error: checkError } = await supabase
-        .from('link_bio_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error al verificar perfil:', checkError);
-        throw new Error(checkError.message || 'Error al verificar el perfil');
-      }
 
       if (existing) {
         // Existe, actualizar
@@ -259,29 +262,45 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
           .from('link_bio_profiles')
           .update(profileData)
           .eq('user_id', user.id)
-          .eq('username', user.username)
-          .select();
+          .select()
+          .single();
 
         if (updateError) {
           console.error('Error al actualizar:', updateError);
-          throw new Error(updateError.message || 'Error al actualizar el perfil');
+          alert('Error al actualizar el perfil: ' + (updateError.message || 'Error desconocido'));
+          return;
         }
         console.log('Perfil actualizado:', data);
+        
+        // Actualizar el estado local con los datos guardados
+        if (data) {
+          setIsPublished(data.is_published || false);
+          setCustomSlug(data.custom_slug || null);
+        }
       } else {
         // No existe, crear nuevo
         console.log('Creando nuevo perfil');
         const { data, error: insertError } = await supabase
           .from('link_bio_profiles')
           .insert(profileData)
-          .select();
+          .select()
+          .single();
 
         if (insertError) {
           console.error('Error al insertar:', insertError);
-          throw new Error(insertError.message || 'Error al guardar el perfil');
+          alert('Error al guardar el perfil: ' + (insertError.message || 'Error desconocido'));
+          setSaving(false);
+          return;
         }
         console.log('Perfil creado:', data);
+        
+        // Actualizar el estado local con los datos guardados
+        if (data) {
+          setIsPublished(data.is_published || false);
+          setCustomSlug(data.custom_slug || null);
+        }
       }
-
+      
       // Mostrar mensaje de éxito
       alert('Perfil guardado correctamente');
     } catch (error: any) {
