@@ -27,10 +27,8 @@ export const PublicLinkBio: React.FC = () => {
         return;
       }
 
-      // Cancelar query anterior si existe
+      // Limpiar cualquier estado anterior
       if (queryAbortControllerRef.current) {
-        console.warn('[PublicLinkBio] Cancelling previous query');
-        queryAbortControllerRef.current.abort();
         queryAbortControllerRef.current = null;
       }
 
@@ -74,61 +72,76 @@ export const PublicLinkBio: React.FC = () => {
 
         const customSlugLower = extension.toLowerCase();
         console.log('[PublicLinkBio] Querying Supabase for extension:', customSlugLower);
+        
+        // Verificar que el cliente de Supabase esté disponible
+        if (!supabase) {
+          console.error('[PublicLinkBio] Supabase client is not available');
+          setError('Error de configuración: Cliente de Supabase no disponible');
+          setLoading(false);
+          isLoadingRef.current = false;
+          clearTimeout(timeoutId);
+          return;
+        }
+        
         console.log('[PublicLinkBio] Supabase client check:', {
           hasClient: !!supabase,
           url: import.meta.env.VITE_SUPABASE_URL ? 'present' : 'missing',
-          key: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'present' : 'missing'
+          key: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'present' : 'missing',
+          urlPreview: import.meta.env.VITE_SUPABASE_URL ? import.meta.env.VITE_SUPABASE_URL.substring(0, 30) + '...' : 'missing'
         });
 
-        // Query simple y directa, sin timeouts complejos que puedan interferir
+        // Query simple y directa - sin AbortController que pueda interferir
         console.log('[PublicLinkBio] Executing query...');
         const queryStartTime = Date.now();
         
-        // Crear un nuevo AbortController para esta query
-        const abortController = new AbortController();
-        queryAbortControllerRef.current = abortController;
+        // Intentar la query con retry simple
+        let linkBioProfile = null;
+        let linkBioError = null;
+        const maxRetries = 2;
         
-        let linkBioProfile, linkBioError;
-        try {
-          // Verificar si la query fue cancelada antes de ejecutarla
-          if (abortController.signal.aborted) {
-            console.warn('[PublicLinkBio] Query was aborted before execution');
-            return;
-          }
-
-          const result = await supabase
-            .from('link_bio_profiles')
-            .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
-            .eq('custom_slug', customSlugLower)
-            .eq('is_published', true)
-            .maybeSingle();
-          
-          // Verificar si la query fue cancelada después de ejecutarla
-          if (abortController.signal.aborted) {
-            console.warn('[PublicLinkBio] Query was aborted after execution');
-            return;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          if (attempt > 0) {
+            console.log(`[PublicLinkBio] Retry attempt ${attempt}/${maxRetries}`);
+            // Esperar un poco antes de reintentar
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           }
           
-          linkBioProfile = result.data;
-          linkBioError = result.error;
-        } catch (queryErr: any) {
-          // Ignorar errores de abort
-          if (queryErr.name === 'AbortError' || abortController.signal.aborted) {
-            console.warn('[PublicLinkBio] Query was aborted');
-            return;
-          }
-          
-          console.error('[PublicLinkBio] Query threw exception:', queryErr);
-          linkBioError = { 
-            code: 'QUERY_EXCEPTION', 
-            message: queryErr.message || 'Error ejecutando la consulta',
-            details: queryErr.stack
-          };
-          linkBioProfile = null;
-        } finally {
-          // Limpiar el AbortController si esta query terminó
-          if (queryAbortControllerRef.current === abortController) {
-            queryAbortControllerRef.current = null;
+          try {
+            const result = await supabase
+              .from('link_bio_profiles')
+              .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
+              .eq('custom_slug', customSlugLower)
+              .eq('is_published', true)
+              .maybeSingle();
+            
+            linkBioProfile = result.data;
+            linkBioError = result.error;
+            
+            // Si tenemos datos o un error que no sea de red, salir del loop
+            if (linkBioProfile || (linkBioError && linkBioError.code !== 'PGRST301' && linkBioError.code !== 'PGRST100')) {
+              break;
+            }
+            
+            // Si es un error de red y no es el último intento, continuar
+            if (attempt < maxRetries) {
+              console.warn('[PublicLinkBio] Network error, will retry...');
+              continue;
+            }
+          } catch (queryErr: any) {
+            console.error(`[PublicLinkBio] Query attempt ${attempt} failed:`, queryErr);
+            
+            // Si no es el último intento, continuar
+            if (attempt < maxRetries) {
+              continue;
+            }
+            
+            // Último intento falló
+            linkBioError = { 
+              code: 'QUERY_EXCEPTION', 
+              message: queryErr.message || 'Error ejecutando la consulta',
+              details: queryErr.stack
+            };
+            linkBioProfile = null;
           }
         }
         
@@ -231,11 +244,8 @@ export const PublicLinkBio: React.FC = () => {
 
     // Cleanup: resetear refs al desmontar o cambiar extensión
     return () => {
-      console.log('[PublicLinkBio] Cleanup: resetting refs and cancelling queries');
-      if (queryAbortControllerRef.current) {
-        queryAbortControllerRef.current.abort();
-        queryAbortControllerRef.current = null;
-      }
+      console.log('[PublicLinkBio] Cleanup: resetting refs');
+      queryAbortControllerRef.current = null;
       isLoadingRef.current = false;
     };
   }, [extension]); // Solo ejecutar cuando cambie la extensión
