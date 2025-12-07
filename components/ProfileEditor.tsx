@@ -1589,11 +1589,7 @@ export const ProfileRenderer: React.FC<{ profile: LinkBioProfile; profileUserId?
             
             if (block.type === 'gallery' && block.images && block.images.length > 0) {
               return (
-                <div key={block.id} className="grid grid-cols-2 gap-2 mb-4">
-                  {block.images.map((img, i) => (
-                    <img key={i} src={img} className="w-full h-24 object-cover rounded-lg shadow-sm bg-black/5" alt={`Gallery ${i}`} />
-                  ))}
-                </div>
+                <ImageCarousel key={block.id} images={block.images.slice(0, 7)} />
               )
             }
 

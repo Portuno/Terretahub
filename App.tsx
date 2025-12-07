@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { LandingPage } from './components/LandingPage';
@@ -15,14 +15,15 @@ const AppContent: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
   const navigate = useNavigate();
+  const userRef = useRef<AuthUser | null>(null); // Ref para verificar usuario sin causar re-renders
 
-  // Función helper para cargar el perfil del usuario (con timeout)
+  // Función helper para cargar el perfil del usuario (con timeout aumentado)
   const loadUserProfile = async (userId: string): Promise<AuthUser | null> => {
     try {
       console.log('[App] Loading profile for user:', userId);
       const queryStartTime = Date.now();
       
-      // Agregar timeout a la consulta
+      // Agregar timeout a la consulta (aumentado a 15 segundos para conexiones lentas)
       const profileQuery = supabase
         .from('profiles')
         .select('*')
@@ -32,7 +33,7 @@ const AppContent: React.FC = () => {
       const profileQueryWithTimeout = Promise.race([
         profileQuery,
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile query timeout')), 5000)
+          setTimeout(() => reject(new Error('Profile query timeout')), 15000)
         )
       ]) as Promise<{ data: any; error: any }>;
       
@@ -42,6 +43,13 @@ const AppContent: React.FC = () => {
 
       if (profileError) {
         console.error('[App] Error al cargar perfil:', profileError);
+        // No retornar null inmediatamente - verificar si la sesión aún es válida
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.log('[App] Session expired during profile load');
+          return null;
+        }
+        // Si la sesión sigue válida pero hay error, retornar null pero no perder la sesión
         return null;
       }
 
@@ -59,7 +67,18 @@ const AppContent: React.FC = () => {
     } catch (err: any) {
       console.error('[App] Error en loadUserProfile:', err);
       if (err.message?.includes('timeout')) {
-        console.error('[App] Profile query timed out after 5 seconds');
+        console.error('[App] Profile query timed out after 15 seconds');
+        // Verificar si la sesión aún es válida antes de retornar null
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id === userId) {
+            console.log('[App] Session still valid despite timeout, keeping user');
+            // La sesión sigue válida, no perder el usuario si ya estaba cargado
+            return userRef.current; // Retornar el usuario actual si existe
+          }
+        } catch (sessionErr) {
+          console.error('[App] Error checking session after timeout:', sessionErr);
+        }
       }
       return null;
     }
@@ -70,6 +89,7 @@ const AppContent: React.FC = () => {
     let isMounted = true;
     let sessionChecked = false;
     let isCheckingSession = false;
+    let isLoadingProfile = false; // Prevenir múltiples cargas simultáneas
 
     // Timeout de seguridad: si después de 10 segundos no se ha verificado la sesión, continuar
     const safetyTimeout = setTimeout(() => {
@@ -106,28 +126,42 @@ const AppContent: React.FC = () => {
         
         if (session?.user) {
           console.log('[App] Session found, loading profile...', { userId: session.user.id });
+          isLoadingProfile = true;
           const loadedUser = await loadUserProfile(session.user.id);
+          isLoadingProfile = false;
           if (isMounted) {
-            setUser(loadedUser);
+            // Solo actualizar si se cargó el perfil exitosamente
+            // Si hay un error pero la sesión sigue válida, mantener el usuario actual si existe
+            if (loadedUser) {
+              setUser(loadedUser);
+              userRef.current = loadedUser; // Actualizar ref
+            } else if (!userRef.current) {
+              // Solo establecer en null si no hay usuario previo
+              setUser(null);
+              userRef.current = null;
+            }
             setIsLoadingSession(false);
             sessionChecked = true;
             isCheckingSession = false;
-            console.log('[App] Session restored', { hasUser: !!loadedUser });
+            console.log('[App] Session restored', { hasUser: !!loadedUser || !!userRef.current });
           }
         } else {
           console.log('[App] No session found');
           if (isMounted) {
             setUser(null);
+            userRef.current = null; // Actualizar ref
             setIsLoadingSession(false);
             sessionChecked = true;
             isCheckingSession = false;
           }
         }
-      } catch (err) {
+        } catch (err) {
         console.error('[App] Error en checkSession:', err);
+        isLoadingProfile = false;
         if (isMounted) {
           setIsLoadingSession(false);
           setUser(null);
+          userRef.current = null; // Actualizar ref
           sessionChecked = true;
           isCheckingSession = false;
         }
@@ -138,7 +172,7 @@ const AppContent: React.FC = () => {
 
     // Escuchar cambios en la autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[App] Auth state changed', { event, hasSession: !!session, sessionChecked, isCheckingSession });
+      console.log('[App] Auth state changed', { event, hasSession: !!session, sessionChecked, isCheckingSession, isLoadingProfile });
       
       // Ignorar eventos durante la inicialización - checkSession ya los maneja
       if (!sessionChecked && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
@@ -151,30 +185,60 @@ const AppContent: React.FC = () => {
           console.log('[App] User signed out');
           if (isMounted) {
             setUser(null);
+            userRef.current = null; // Actualizar ref
             setIsLoadingSession(false);
             sessionChecked = true;
+            isLoadingProfile = false;
           }
         } else if (event === 'SIGNED_IN') {
-          // Solo manejar SIGNED_IN si ya se completó la verificación inicial
-          if (session?.user && sessionChecked) {
-            console.log('[App] User signed in after initial check, loading profile...', { userId: session.user.id });
-            const loadedUser = await loadUserProfile(session.user.id);
-            if (isMounted) {
-              setUser(loadedUser);
-              setIsLoadingSession(false);
-              console.log('[App] User profile loaded', { hasUser: !!loadedUser });
+          // Solo manejar SIGNED_IN si:
+          // 1. Ya se completó la verificación inicial
+          // 2. No hay un usuario cargado actualmente
+          // 3. No hay una carga de perfil en progreso
+          if (session?.user && sessionChecked && !isLoadingProfile) {
+            // Verificar si ya tenemos un usuario cargado con el mismo ID usando el ref
+            // Si es así, no recargar (evita recargas innecesarias al volver a la pestaña)
+            if (isMounted && userRef.current && userRef.current.id === session.user.id) {
+              console.log('[App] User already loaded, ignoring SIGNED_IN event');
+              return;
             }
+            
+            console.log('[App] User signed in after initial check, loading profile...', { userId: session.user.id });
+            isLoadingProfile = true;
+            const loadedUser = await loadUserProfile(session.user.id);
+            isLoadingProfile = false;
+            if (isMounted) {
+              // Solo actualizar si se cargó el perfil exitosamente
+              if (loadedUser) {
+                setUser(loadedUser);
+                userRef.current = loadedUser; // Actualizar ref
+              }
+              // Si hay error pero la sesión sigue válida, mantener el usuario actual si existe
+              setIsLoadingSession(false);
+              console.log('[App] User profile loaded', { hasUser: !!loadedUser || !!userRef.current });
+            }
+          } else {
+            console.log('[App] Ignoring SIGNED_IN event', { 
+              sessionChecked, 
+              isLoadingProfile, 
+              hasUser: !!userRef.current,
+              userId: userRef.current?.id,
+              sessionUserId: session?.user?.id
+            });
           }
         } else if (event === 'TOKEN_REFRESHED') {
-          // Token refresh no requiere recargar el perfil, solo actualizar si es necesario
+          // Token refresh no requiere recargar el perfil
+          // Solo actualizar el estado si aún no se ha verificado la sesión
           console.log('[App] Token refreshed');
           if (isMounted && !sessionChecked) {
             setIsLoadingSession(false);
             sessionChecked = true;
           }
+          // Si ya hay un usuario cargado, no hacer nada más
         }
       } catch (err) {
         console.error('[App] Error en onAuthStateChange:', err);
+        isLoadingProfile = false;
         if (isMounted && !sessionChecked) {
           setIsLoadingSession(false);
           sessionChecked = true;
@@ -187,10 +251,11 @@ const AppContent: React.FC = () => {
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Sin dependencias - el ref se actualiza cuando cambia user
 
   const handleLoginSuccess = (loggedInUser: AuthUser) => {
     setUser(loggedInUser);
+    userRef.current = loggedInUser; // Actualizar ref
     setIsAuthModalOpen(false);
     navigate('/app');
   };
@@ -198,6 +263,7 @@ const AppContent: React.FC = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    userRef.current = null; // Actualizar ref
     navigate('/');
   };
 
