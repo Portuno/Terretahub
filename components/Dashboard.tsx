@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { UserCard } from './UserCard';
 import { UserProfile, AuthUser, Project } from '../types';
@@ -73,11 +74,62 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout }) => {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('agora');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(user);
   
   // Public Profile State
   const [viewingProfileHandle, setViewingProfileHandle] = useState<string | null>(null);
+  
+  // Actualizar usuario cuando cambia el prop o cuando se actualiza el perfil
+  useEffect(() => {
+    setCurrentUser(user);
+  }, [user]);
+
+  // Escuchar cambios en el perfil del usuario para actualizar avatar
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshUserProfile = async () => {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && profile) {
+        setCurrentUser({
+          id: profile.id,
+          name: profile.name,
+          username: profile.username,
+          email: profile.email,
+          avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+          role: (profile.role as 'normal' | 'admin') || 'normal',
+        });
+      }
+    };
+
+    // Refrescar cada 30 segundos para obtener avatares actualizados
+    const interval = setInterval(refreshUserProfile, 30000);
+    
+    // Escuchar evento de actualización de avatar
+    const handleAvatarUpdate = (event: CustomEvent) => {
+      if (currentUser) {
+        setCurrentUser({
+          ...currentUser,
+          avatar: event.detail.avatar
+        });
+      }
+    };
+
+    window.addEventListener('profileAvatarUpdated', handleAvatarUpdate as EventListener);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('profileAvatarUpdated', handleAvatarUpdate as EventListener);
+    };
+  }, [user, currentUser]);
 
   // Projects View State
   const [projectMode, setProjectMode] = useState<'gallery' | 'create'>('gallery');
@@ -94,7 +146,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
   );
   
   const handleProjectSave = async (project: Project) => {
-    if (!user) {
+    if (!currentUser) {
       console.error('[Dashboard] No user available to save project');
       return;
     }
@@ -104,7 +156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
 
       // Mapear el proyecto del frontend a la estructura de la base de datos
       const projectData = {
-        author_id: user.id, // El ID del usuario autenticado
+        author_id: currentUser.id, // El ID del usuario autenticado
         name: project.name,
         slogan: project.slogan || null,
         description: project.description,
@@ -159,9 +211,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
     }
   };
 
-  const handleViewProfile = (handle: string) => {
-    setViewingProfileHandle(handle);
-    setActiveSection('public_profile');
+  const handleViewProfile = async (handle: string) => {
+    // Limpiar el handle (quitar @ si existe)
+    const cleanHandle = handle.replace('@', '').trim();
+    
+    // Buscar el perfil real en la base de datos para obtener el custom_slug o username
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', cleanHandle)
+        .single();
+
+      if (!error && profile) {
+        // Buscar si tiene un link_bio_profile con custom_slug
+        const { data: linkBioProfile } = await supabase
+          .from('link_bio_profiles')
+          .select('custom_slug, username')
+          .eq('username', profile.username)
+          .eq('is_published', true)
+          .maybeSingle();
+
+        // Usar custom_slug si existe, sino usar username
+        const extension = linkBioProfile?.custom_slug || profile.username;
+        
+        // Navegar a la página pública del perfil usando react-router
+        navigate(`/p/${extension}`);
+      } else {
+        // Si no existe el perfil, navegar de todas formas (mostrará 404)
+        navigate(`/p/${cleanHandle}`);
+      }
+    } catch (err) {
+      console.error('Error al buscar perfil:', err);
+      // En caso de error, intentar navegar de todas formas (mostrará 404)
+      navigate(`/p/${cleanHandle}`);
+    }
   };
 
   return (
@@ -207,14 +291,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
             <div className="flex items-center gap-6 ml-auto">
                 <div className="flex flex-col items-end mr-2 hidden sm:flex">
                     <span className="text-xs font-bold text-terreta-dark/40 uppercase tracking-wide">
-                      {user ? `Hola, ${user.name}` : 'Hola, Turista'}
+                      {currentUser ? `Hola, ${currentUser.name}` : 'Hola, Turista'}
                     </span>
                     <span className="text-sm font-bold text-[#D97706] uppercase tracking-wider">
-                      {user ? 'MIEMBRO' : 'EXPLORADOR'}
+                      {currentUser ? 'MIEMBRO' : 'EXPLORADOR'}
                     </span>
                 </div>
                 
-                {user ? (
+                {currentUser ? (
                    <button className="relative text-terreta-dark/60 hover:text-terreta-dark transition-colors">
                       <Bell size={20} />
                       <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
@@ -222,10 +306,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
                 ) : null}
 
                 <div 
-                  onClick={user ? () => setActiveSection('perfil') : onOpenAuth}
+                  onClick={currentUser ? () => setActiveSection('perfil') : onOpenAuth}
                   className="w-10 h-10 rounded-full bg-[#EBE5DA] flex items-center justify-center text-terreta-dark hover:bg-[#D9CDB8] transition-colors cursor-pointer border border-[#D1C9BC] overflow-hidden"
                 >
-                    {user ? <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" /> : <User size={20} />}
+                    {currentUser ? <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" /> : <User size={20} />}
                 </div>
             </div>
         </header>
@@ -235,8 +319,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
           
           {activeSection === 'public_profile' && viewingProfileHandle ? (
              <PublicProfile handle={viewingProfileHandle} mockUsers={MOCK_USERS} />
-          ) : activeSection === 'perfil' && user ? (
-            <ProfileEditor user={user} />
+          ) : activeSection === 'perfil' && currentUser ? (
+            <ProfileEditor user={currentUser} />
           ) : activeSection === 'perfil' && !user ? (
             <div className="flex flex-col items-center justify-center h-[60vh] text-center p-10 animate-fade-in">
               <div className="w-16 h-16 bg-[#EBE5DA] rounded-full flex items-center justify-center mb-4">
@@ -252,20 +336,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
               </button>
             </div>
           ) : activeSection === 'agora' ? (
-            <AgoraFeed user={user} onOpenAuth={onOpenAuth} onViewProfile={handleViewProfile} />
+            <AgoraFeed user={currentUser} onOpenAuth={onOpenAuth} onViewProfile={handleViewProfile} />
           ) : activeSection === 'proyectos' ? (
-             projectMode === 'create' && user ? (
-               <ProjectEditor user={user} onCancel={() => setProjectMode('gallery')} onSave={handleProjectSave} />
+             projectMode === 'create' && currentUser ? (
+               <ProjectEditor user={currentUser} onCancel={() => setProjectMode('gallery')} onSave={handleProjectSave} />
              ) : (
                 <ProjectsGallery 
                   onViewProfile={handleViewProfile}
-                  onCreateProject={user ? () => setProjectMode('create') : onOpenAuth}
-                  user={user}
+                  onCreateProject={currentUser ? () => setProjectMode('create') : onOpenAuth}
+                  user={currentUser}
                 />
              )
-          ) : activeSection === 'admin' && user && isAdmin(user) ? (
-            <AdminProjectsPanel user={user} />
-          ) : activeSection === 'admin' && (!user || !isAdmin(user)) ? (
+          ) : activeSection === 'admin' && currentUser && isAdmin(currentUser) ? (
+            <AdminProjectsPanel user={currentUser} />
+          ) : activeSection === 'admin' && (!currentUser || !isAdmin(currentUser)) ? (
             <div className="flex flex-col items-center justify-center h-[60vh] text-center p-10 animate-fade-in">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                 <User size={32} className="text-red-500" />

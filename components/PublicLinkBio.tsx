@@ -85,13 +85,35 @@ export const PublicLinkBio: React.FC = () => {
         console.log('[PublicLinkBio] Supabase client available, executing query...');
         const queryStartTime = Date.now();
         
-        // Query DIRECTA sin Promise.race ni test de conectividad
-        const { data, error: queryError } = await supabase
+        // Primero intentar buscar por custom_slug, luego por username
+        let data = null;
+        let queryError = null;
+
+        // Intentar buscar por custom_slug primero
+        const { data: slugData, error: slugError } = await supabase
           .from('link_bio_profiles')
           .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
           .eq('custom_slug', customSlugLower)
           .eq('is_published', true)
           .maybeSingle();
+
+        if (slugData) {
+          data = slugData;
+        } else {
+          // Si no se encuentra por custom_slug, buscar por username
+          const { data: usernameData, error: usernameError } = await supabase
+            .from('link_bio_profiles')
+            .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
+            .eq('username', customSlugLower)
+            .eq('is_published', true)
+            .maybeSingle();
+
+          if (usernameData) {
+            data = usernameData;
+          } else {
+            queryError = usernameError || slugError;
+          }
+        }
         
         const queryDuration = Date.now() - queryStartTime;
         console.log('[PublicLinkBio] Query completed', {

@@ -304,6 +304,15 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
           setProfile(loadedProfile);
           setIsPublished(existingProfile.is_published || false);
           setCustomSlug(existingProfile.custom_slug || null);
+          
+          // Si el perfil tiene un avatar, actualizarlo también en la tabla profiles
+          if (existingProfile.avatar) {
+            await supabase
+              .from('profiles')
+              .update({ avatar: existingProfile.avatar })
+              .eq('id', user.id);
+          }
+          
           console.log('[ProfileEditor] Profile loaded successfully');
         } else {
           console.log('[ProfileEditor] No profile found, using initial profile');
@@ -439,6 +448,17 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
             theme: (data.theme as any) || getInitialProfile(user).theme
           };
           setProfile(updatedProfile);
+
+          // También actualizar el avatar en la tabla profiles para que se muestre en el ágora
+          if (data.avatar) {
+            await supabase
+              .from('profiles')
+              .update({ avatar: data.avatar })
+              .eq('id', user.id);
+            
+            // Disparar evento para actualizar el usuario en Dashboard
+            window.dispatchEvent(new CustomEvent('profileAvatarUpdated', { detail: { avatar: data.avatar } }));
+          }
         }
       } else {
         // No existe, crear nuevo
@@ -481,6 +501,17 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
         if (data) {
           setIsPublished(data.is_published || false);
           setCustomSlug(data.custom_slug || null);
+
+          // También actualizar el avatar en la tabla profiles para que se muestre en el ágora
+          if (data.avatar) {
+            await supabase
+              .from('profiles')
+              .update({ avatar: data.avatar })
+              .eq('id', user.id);
+            
+            // Disparar evento para actualizar el usuario en Dashboard
+            window.dispatchEvent(new CustomEvent('profileAvatarUpdated', { detail: { avatar: data.avatar } }));
+          }
         }
       }
       
