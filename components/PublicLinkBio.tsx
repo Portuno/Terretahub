@@ -90,69 +90,74 @@ export const PublicLinkBio: React.FC = () => {
           urlPreview: import.meta.env.VITE_SUPABASE_URL ? import.meta.env.VITE_SUPABASE_URL.substring(0, 30) + '...' : 'missing'
         });
 
-        // Query simple y directa - sin AbortController que pueda interferir
+        // Verificar conectividad básica antes de la query principal
+        console.log('[PublicLinkBio] Testing basic Supabase connection...');
+        try {
+          const testResult = await Promise.race([
+            supabase.from('link_bio_profiles').select('id').limit(1),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Connection test timeout')), 5000))
+          ]) as any;
+          
+          console.log('[PublicLinkBio] Connection test result:', {
+            hasError: !!testResult?.error,
+            errorCode: testResult?.error?.code,
+            canConnect: !testResult?.error || testResult.error.code === 'PGRST116'
+          });
+        } catch (testErr: any) {
+          console.error('[PublicLinkBio] Connection test failed:', testErr);
+          setError('No se pudo conectar con Supabase. Verifica tu conexión a internet.');
+          setLoading(false);
+          isLoadingRef.current = false;
+          clearTimeout(timeoutId);
+          return;
+        }
+
+        // Query simple y directa con timeout explícito
         console.log('[PublicLinkBio] Executing query...');
         const queryStartTime = Date.now();
         
-        // Intentar la query con retry simple
         let linkBioProfile = null;
         let linkBioError = null;
-        const maxRetries = 2;
         
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-          if (attempt > 0) {
-            console.log(`[PublicLinkBio] Retry attempt ${attempt}/${maxRetries}`);
-            // Esperar un poco antes de reintentar
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-          }
+        try {
+          // Crear una promesa con timeout de 10 segundos
+          const queryPromise = supabase
+            .from('link_bio_profiles')
+            .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
+            .eq('custom_slug', customSlugLower)
+            .eq('is_published', true)
+            .maybeSingle();
           
-          try {
-            const result = await supabase
-              .from('link_bio_profiles')
-              .select('username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
-              .eq('custom_slug', customSlugLower)
-              .eq('is_published', true)
-              .maybeSingle();
-            
-            linkBioProfile = result.data;
-            linkBioError = result.error;
-            
-            // Si tenemos datos o un error que no sea de red, salir del loop
-            if (linkBioProfile || (linkBioError && linkBioError.code !== 'PGRST301' && linkBioError.code !== 'PGRST100')) {
-              break;
-            }
-            
-            // Si es un error de red y no es el último intento, continuar
-            if (attempt < maxRetries) {
-              console.warn('[PublicLinkBio] Network error, will retry...');
-              continue;
-            }
-          } catch (queryErr: any) {
-            console.error(`[PublicLinkBio] Query attempt ${attempt} failed:`, queryErr);
-            
-            // Si no es el último intento, continuar
-            if (attempt < maxRetries) {
-              continue;
-            }
-            
-            // Último intento falló
-            linkBioError = { 
-              code: 'QUERY_EXCEPTION', 
-              message: queryErr.message || 'Error ejecutando la consulta',
-              details: queryErr.stack
-            };
-            linkBioProfile = null;
-          }
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Query timeout after 10 seconds')), 10000);
+          });
+          
+          console.log('[PublicLinkBio] Waiting for query response...');
+          const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+          
+          linkBioProfile = result?.data;
+          linkBioError = result?.error;
+          
+          const queryDuration = Date.now() - queryStartTime;
+          console.log('[PublicLinkBio] Query completed', {
+            duration: `${queryDuration}ms`,
+            hasData: !!linkBioProfile,
+            hasError: !!linkBioError,
+            errorCode: linkBioError?.code,
+            errorMessage: linkBioError?.message
+          });
+        } catch (queryErr: any) {
+          const queryDuration = Date.now() - queryStartTime;
+          console.error('[PublicLinkBio] Query failed:', queryErr);
+          console.error('[PublicLinkBio] Query duration before failure:', `${queryDuration}ms`);
+          
+          linkBioError = { 
+            code: 'QUERY_TIMEOUT', 
+            message: queryErr.message || 'La consulta tardó demasiado tiempo',
+            details: queryErr.stack
+          };
+          linkBioProfile = null;
         }
-        
-        const queryDuration = Date.now() - queryStartTime;
-        console.log('[PublicLinkBio] Query completed', {
-          duration: `${queryDuration}ms`,
-          hasData: !!linkBioProfile,
-          hasError: !!linkBioError,
-          errorCode: linkBioError?.code,
-          errorMessage: linkBioError?.message
-        });
 
         clearTimeout(timeoutId);
 

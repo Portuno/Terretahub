@@ -43,6 +43,7 @@ const AppContent: React.FC = () => {
               username: profile.username,
               email: profile.email,
               avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+              role: (profile.role as 'normal' | 'admin') || 'normal',
             };
             setUser(safeUser);
           }
@@ -79,6 +80,7 @@ const AppContent: React.FC = () => {
               username: profile.username,
               email: profile.email,
               avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+              role: (profile.role as 'normal' | 'admin') || 'normal',
             };
             setUser(safeUser);
           }

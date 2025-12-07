@@ -1,6 +1,7 @@
 import React from 'react';
-import { Users, FolderKanban, BookOpen, CalendarDays, LogIn, Layout, MessageSquareText, MessageCircle } from 'lucide-react';
+import { Users, FolderKanban, BookOpen, CalendarDays, LogIn, Layout, MessageSquareText, MessageCircle, Shield } from 'lucide-react';
 import { AuthUser } from '../types';
+import { isAdmin } from '../lib/userRoles';
 
 interface SidebarProps {
   activeSection: string;
@@ -24,6 +25,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'recursos', label: 'Recursos', icon: <BookOpen size={20} /> },
     { id: 'eventos', label: 'Eventos', icon: <CalendarDays size={20} /> },
   ];
+
+  // Agregar sección Admin si el usuario es admin
+  if (user && isAdmin(user)) {
+    menuItems.push({ id: 'admin', label: 'Admin', icon: <Shield size={20} /> });
+  }
 
   return (
     <aside className="w-64 bg-[#EBE5DA] h-screen fixed left-0 top-0 flex flex-col border-r border-[#D1C9BC]/30 z-20 hidden md:flex">

@@ -30,6 +30,7 @@ export interface AuthUser {
   email: string;
   username: string; // The slug for the link-in-bio
   avatar: string;
+  role: 'normal' | 'admin';
 }
 
 // --- LINK IN BIO TYPES ---
@@ -96,6 +97,7 @@ export interface AgoraComment {
 
 export interface AgoraPost {
   id: string;
+  authorId: string; // ID del autor para verificar permisos
   author: {
     name: string;
     avatar: string;

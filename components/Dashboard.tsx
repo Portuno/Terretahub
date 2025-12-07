@@ -8,7 +8,9 @@ import { AgoraFeed } from './AgoraFeed';
 import { ProjectEditor } from './ProjectEditor';
 import { FeedbackModal } from './FeedbackModal';
 import { PublicProfile } from './PublicProfile';
+import { AdminProjectsPanel } from './AdminProjectsPanel';
 import { supabase } from '../lib/supabase';
+import { isAdmin } from '../lib/userRoles';
 
 // Mock Data
 const MOCK_USERS: UserProfile[] = [
@@ -175,6 +177,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
                 {activeSection === 'recursos' && 'Biblioteca de Recursos'}
                 {activeSection === 'eventos' && 'Próximos Eventos'}
                 {activeSection === 'perfil' && 'Editor de Perfil'}
+                {activeSection === 'admin' && 'Panel de Administración'}
                 {activeSection === 'public_profile' && (
                   <span className="flex items-center gap-2">
                     <span 
@@ -263,6 +266,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
                    </div>
                 </div>
              )
+          ) : activeSection === 'admin' && user && isAdmin(user) ? (
+            <AdminProjectsPanel user={user} />
+          ) : activeSection === 'admin' && (!user || !isAdmin(user)) ? (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-10 animate-fade-in">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <User size={32} className="text-red-500" />
+              </div>
+              <h3 className="font-serif text-2xl text-terreta-dark mb-2">Acceso Denegado</h3>
+              <p className="max-w-md mx-auto text-gray-500">No tienes permisos de administrador para acceder a esta sección.</p>
+            </div>
           ) : activeSection === 'comunidad' ? (
             <div className="p-6 md:p-10">
               <div className="max-w-7xl mx-auto animate-fade-in">

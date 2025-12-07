@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
-import { MessageCircle, Share2, MoreHorizontal, Send } from 'lucide-react';
+import { MessageCircle, Share2, MoreHorizontal, Send, Trash2, Shield } from 'lucide-react';
 import { AgoraPost as AgoraPostType, AuthUser } from '../types';
+import { canDelete } from '../lib/userRoles';
 
 interface AgoraPostProps {
   post: AgoraPostType;
   currentUser: AuthUser | null;
   onReply: (postId: string, content: string) => void;
+  onDelete?: (postId: string) => void;
   onOpenAuth: () => void;
   onViewProfile?: (handle: string) => void;
 }
 
-export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply, onOpenAuth, onViewProfile }) => {
+export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply, onDelete, onOpenAuth, onViewProfile }) => {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [pasteCount, setPasteCount] = useState(0);
   const [showPasteWarning, setShowPasteWarning] = useState(false);
+  const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+
+  const canDeletePost = canDelete(currentUser, post.authorId);
 
   const handleSubmitReply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +57,25 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
       }
   };
 
+  // Cerrar menú de eliminación al hacer click fuera
+  React.useEffect(() => {
+    if (!showDeleteMenu) return;
+    
+    const handleClickOutside = () => {
+      setShowDeleteMenu(false);
+    };
+    
+    // Usar setTimeout para evitar que se cierre inmediatamente al abrir
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showDeleteMenu]);
+
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow mb-4">
       
@@ -72,6 +96,12 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
               >
                 {post.author.name}
               </h3>
+              {post.author.role === 'Admin' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#D97706] text-white text-[10px] font-bold uppercase tracking-wide rounded-full">
+                  <Shield size={10} />
+                  Admin
+                </span>
+              )}
               <span className="text-xs text-gray-400 font-sans">{post.timestamp}</span>
             </div>
             <p 
@@ -82,9 +112,37 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
             </p>
           </div>
         </div>
-        <button className="text-gray-300 hover:text-gray-500">
-          <MoreHorizontal size={20} />
-        </button>
+        <div className="relative">
+          {canDeletePost && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteMenu(!showDeleteMenu);
+              }}
+              className="text-gray-300 hover:text-gray-500 relative"
+            >
+              <MoreHorizontal size={20} />
+            </button>
+          )}
+          {showDeleteMenu && canDeletePost && onDelete && (
+            <div 
+              className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(post.id);
+                  setShowDeleteMenu(false);
+                }}
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 size={16} />
+                <span>Eliminar</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content */}

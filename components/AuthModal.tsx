@@ -103,16 +103,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
           throw new Error('Error al crear el perfil. Intenta nuevamente.');
         }
 
-        // Construir objeto de usuario para el estado
-        const newUser: AuthUser = {
+        const safeUser: AuthUser = {
           id: profile.id,
           name: profile.name,
           username: profile.username,
           email: profile.email,
-          avatar: profile.avatar || avatarUrl,
+          avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+          role: (profile.role as 'normal' | 'admin') || 'normal',
         };
 
-        onLoginSuccess(newUser);
+        onLoginSuccess(safeUser);
         onClose();
       } else {
         // LOGIN LOGIC
@@ -159,6 +159,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
           username: profile.username,
           email: profile.email,
           avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+          role: (profile.role as 'normal' | 'admin') || 'normal',
         };
 
         onLoginSuccess(safeUser);

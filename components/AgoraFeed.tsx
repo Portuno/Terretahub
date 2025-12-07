@@ -3,6 +3,7 @@ import { Send, User, Bold, Italic, AlertTriangle } from 'lucide-react';
 import { AgoraPost as AgoraPostComponent } from './AgoraPost';
 import { AgoraPost, AuthUser } from '../types';
 import { supabase } from '../lib/supabase';
+import { isAdmin } from '../lib/userRoles';
 
 // Helper para formatear timestamps
 const formatTimestamp = (dateString: string): string => {
@@ -58,7 +59,7 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth, onViewPr
             // Obtener perfil del autor
             const { data: authorProfile, error: authorError } = await supabase
               .from('profiles')
-              .select('id, name, username, avatar')
+              .select('id, name, username, avatar, role')
               .eq('id', post.author_id)
               .single();
 
@@ -105,11 +106,12 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth, onViewPr
 
             return {
               id: post.id,
+              authorId: post.author_id,
               author: {
                 name: authorProfile?.name || 'Usuario',
                 handle: `@${authorProfile?.username || 'usuario'}`,
                 avatar: authorProfile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authorProfile?.username || 'user'}`,
-                role: 'Miembro'
+                role: authorProfile?.role === 'admin' ? 'Admin' : 'Miembro'
               },
               content: post.content,
               timestamp: formatTimestamp(post.created_at),
@@ -153,11 +155,12 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth, onViewPr
       // Formatear el nuevo post
       const formattedPost: AgoraPost = {
         id: newPost.id,
+        authorId: newPost.author_id,
         author: {
           name: user.name,
           handle: `@${user.username}`,
           avatar: user.avatar,
-          role: 'Miembro'
+          role: user.role === 'admin' ? 'Admin' : 'Miembro'
         },
         content: newPost.content,
         timestamp: formatTimestamp(newPost.created_at),
@@ -221,6 +224,34 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth, onViewPr
     } catch (err) {
       console.error('Error al crear comentario:', err);
       alert('Error al comentar. Intenta nuevamente.');
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!user) return;
+    
+    // Confirmar eliminación
+    if (!confirm('¿Estás seguro de que quieres eliminar este post?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('agora_posts')
+        .delete()
+        .eq('id', postId);
+
+      if (error) {
+        console.error('Error al eliminar post:', error);
+        alert('Error al eliminar el post. Intenta nuevamente.');
+        return;
+      }
+
+      // Remover el post de la lista
+      setPosts(prev => prev.filter(post => post.id !== postId));
+    } catch (err) {
+      console.error('Error al eliminar post:', err);
+      alert('Error al eliminar el post. Intenta nuevamente.');
     }
   };
 
@@ -360,6 +391,7 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth, onViewPr
               post={post} 
               currentUser={user}
               onReply={handleReply}
+              onDelete={handleDeletePost}
               onOpenAuth={onOpenAuth}
               onViewProfile={onViewProfile}
             />
