@@ -7,6 +7,7 @@ interface ToastProps {
   secondaryLink?: string;
   onClose: () => void;
   duration?: number;
+  variant?: 'success' | 'terreta';
 }
 
 export const Toast: React.FC<ToastProps> = ({
@@ -14,7 +15,8 @@ export const Toast: React.FC<ToastProps> = ({
   secondaryMessage,
   secondaryLink,
   onClose,
-  duration = 4000
+  duration = 4000,
+  variant = 'success'
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
@@ -58,7 +60,9 @@ export const Toast: React.FC<ToastProps> = ({
 
       {/* Toast Container */}
       <div
-        className={`relative bg-[#2D8659] rounded-[13px] shadow-2xl p-5 min-w-[320px] max-w-[500px] pointer-events-auto transition-all duration-300 ${
+        className={`relative rounded-[13px] shadow-2xl p-5 min-w-[320px] max-w-[500px] pointer-events-auto transition-all duration-300 ${
+          variant === 'terreta' ? 'bg-[#D97706]' : 'bg-[#2D8659]'
+        } ${
           isVisible && !isExiting
             ? 'opacity-100 translate-y-0 scale-100'
             : 'opacity-0 translate-y-4 scale-95'
@@ -82,7 +86,9 @@ export const Toast: React.FC<ToastProps> = ({
 
           {/* Text Content */}
           <div className="flex-1">
-            <h3 className="font-bold text-[#D4A574] text-lg mb-1 font-serif">
+            <h3 className={`font-bold text-lg mb-1 font-serif ${
+              variant === 'terreta' ? 'text-white' : 'text-[#D4A574]'
+            }`}>
               {message}
             </h3>
             {secondaryMessage && (

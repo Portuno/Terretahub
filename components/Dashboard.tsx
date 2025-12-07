@@ -10,6 +10,7 @@ import { FeedbackModal } from './FeedbackModal';
 import { PublicProfile } from './PublicProfile';
 import { AdminProjectsPanel } from './AdminProjectsPanel';
 import { ProjectsGallery } from './ProjectsGallery';
+import { Toast } from './Toast';
 import { supabase } from '../lib/supabase';
 import { isAdmin } from '../lib/userRoles';
 
@@ -84,6 +85,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
   // Feedback Modal State
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
+  // Toast State
+  const [showProjectToast, setShowProjectToast] = useState(false);
+
   const filteredUsers = MOCK_USERS.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.role.toLowerCase().includes(searchQuery.toLowerCase())
@@ -128,7 +132,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
       }
 
       console.log('[Dashboard] Project saved successfully:', data);
-      alert(`Proyecto ${project.status === 'draft' ? 'guardado como borrador' : 'enviado para revisión'} exitosamente`);
+      
+      // Solo mostrar toast si el proyecto fue enviado (no si es borrador)
+      if (project.status !== 'draft') {
+        setShowProjectToast(true);
+      } else {
+        alert('Proyecto guardado como borrador exitosamente');
+      }
+      
       setProjectMode('gallery');
     } catch (err: any) {
       console.error('[Dashboard] Exception saving project:', err);
@@ -310,6 +321,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
         isOpen={isFeedbackOpen} 
         onClose={() => setIsFeedbackOpen(false)} 
       />
+
+      {/* Project Submission Toast */}
+      {showProjectToast && (
+        <Toast
+          message="¡Proyecto enviado!"
+          secondaryMessage="Tu proyecto fue enviado y será revisado. Espera una respuesta pronto de parte de la administración."
+          onClose={() => setShowProjectToast(false)}
+          duration={6000}
+          variant="terreta"
+        />
+      )}
 
     </div>
   );
