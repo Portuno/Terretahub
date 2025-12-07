@@ -77,6 +77,24 @@ const getInitialProfile = (user: AuthUser): LinkBioProfile => ({
   theme: THEMES[0]
 });
 
+// Helper to normalize URLs - ensures they have a protocol
+const normalizeUrl = (url: string): string => {
+  if (!url || url === '#') return '#';
+  
+  // If URL already has a protocol, return as is
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+  
+  // If URL starts with //, add https:
+  if (url.startsWith('//')) {
+    return `https:${url}`;
+  }
+  
+  // Otherwise, add https://
+  return `https://${url}`;
+};
+
 // Helper for Video Embeds (YouTube & Vimeo)
 const getEmbedUrl = (url: string): string => {
   if (!url) return '';
@@ -1309,7 +1327,7 @@ export const ProfileRenderer: React.FC<{ profile: LinkBioProfile }> = ({ profile
               return (
                 <a 
                   key={block.id} 
-                  href={block.url || '#'} 
+                  href={normalizeUrl(block.url || '#')} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className={getBtnClass()}
