@@ -122,6 +122,7 @@ export interface Project {
   description: string; // The pitch
   images: string[]; // URLs or base64
   videoUrl?: string;
+  website?: string; // URL del sitio web del proyecto
   categories: string[];
   technologies: string[];
   phase: ProjectPhase;
