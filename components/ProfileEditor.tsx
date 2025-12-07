@@ -202,45 +202,46 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
     let isMounted = true;
 
     const loadProfile = async () => {
-      // Timeout de seguridad (8 segundos)
+      // Timeout de seguridad (15 segundos)
       timeoutId = setTimeout(() => {
-        if (isMounted) {
-          console.error('[ProfileEditor] Timeout: Loading took too long');
-          setLoading(false);
+        if (isMounted && isLoadingRef.current) {
+          console.error('[ProfileEditor] Timeout: Loading took more than 15 seconds');
+          console.error('[ProfileEditor] This suggests a network or Supabase connection issue');
+          if (isMounted) {
+            setLoading(false);
+            alert('La consulta está tardando demasiado. Por favor, recarga la página.');
+          }
         }
-      }, 8000);
+      }, 15000);
 
       try {
         console.log('[ProfileEditor] Setting loading to true');
         if (isMounted) setLoading(true);
         
-        console.log('[ProfileEditor] Querying Supabase', { userId: user.id, username: user.username });
+        console.log('[ProfileEditor] Querying Supabase', { 
+          userId: user.id, 
+          username: user.username,
+          timestamp: new Date().toISOString()
+        });
         
-        // Query con timeout
-        const queryPromise = supabase
+        // Query DIRECTA sin Promise.race
+        const queryStartTime = Date.now();
+        const { data: existingProfile, error } = await supabase
           .from('link_bio_profiles')
           .select('*')
           .eq('user_id', user.id)
           .eq('username', user.username)
           .maybeSingle();
-
-        const queryTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Query timeout')), 7000)
-        );
-
-        let existingProfile, error;
-        try {
-          const result = await Promise.race([queryPromise, queryTimeout]) as any;
-          existingProfile = result?.data;
-          error = result?.error;
-        } catch (timeoutErr: any) {
-          console.error('[ProfileEditor] Query timeout:', timeoutErr);
-          if (isMounted) {
-            setLoading(false);
-            alert('La consulta está tardando demasiado. Por favor, recarga la página.');
-          }
-          return;
-        }
+        
+        const queryDuration = Date.now() - queryStartTime;
+        console.log('[ProfileEditor] Query completed', {
+          duration: `${queryDuration}ms`,
+          hasData: !!existingProfile,
+          hasError: !!error,
+          errorCode: error?.code,
+          errorMessage: error?.message,
+          timestamp: new Date().toISOString()
+        });
 
         if (timeoutId) clearTimeout(timeoutId);
 
@@ -252,9 +253,17 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
           errorCode: error?.code 
         });
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
           // PGRST116 es "no rows returned", que es esperado si no existe
-          console.error('[ProfileEditor] Error al cargar perfil:', error);
+          if (error.code !== 'PGRST116') {
+            console.error('[ProfileEditor] Error al cargar perfil:', error);
+            if (isMounted) {
+              setLoading(false);
+              alert('Error al cargar el perfil: ' + (error.message || 'Error desconocido'));
+            }
+            return;
+          }
+          // Si es PGRST116, continuar normalmente (perfil no existe)
         }
 
         if (existingProfile) {

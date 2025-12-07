@@ -9,6 +9,7 @@ import { ProjectEditor } from './ProjectEditor';
 import { FeedbackModal } from './FeedbackModal';
 import { PublicProfile } from './PublicProfile';
 import { AdminProjectsPanel } from './AdminProjectsPanel';
+import { ProjectsGallery } from './ProjectsGallery';
 import { supabase } from '../lib/supabase';
 import { isAdmin } from '../lib/userRoles';
 
@@ -245,26 +246,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
              projectMode === 'create' && user ? (
                <ProjectEditor user={user} onCancel={() => setProjectMode('gallery')} onSave={handleProjectSave} />
              ) : (
-                /* Projects Gallery Placeholder View */
-                <div className="p-6 md:p-10 animate-fade-in">
-                   <div className="flex justify-between items-center mb-10 max-w-7xl mx-auto">
-                      <h3 className="font-serif text-3xl text-terreta-dark">Galería de Innovación</h3>
-                      <button 
-                        onClick={user ? () => setProjectMode('create') : onOpenAuth}
-                        className="bg-[#D97706] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-[#B45309] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                      >
-                         <Plus size={20} /> <span className="hidden sm:inline">Subir Proyecto</span>
-                      </button>
-                   </div>
-                   
-                   <div className="flex flex-col items-center justify-center h-[40vh] text-center opacity-60">
-                      <div className="w-20 h-20 bg-[#F5F0E6] rounded-full flex items-center justify-center mb-6">
-                        <FolderKanban size={40} className="text-[#D97706]" />
-                      </div>
-                      <h4 className="font-serif text-2xl text-terreta-dark mb-2">Aún no hay proyectos públicos</h4>
-                      <p className="max-w-md">Sé el primero en compartir tu idea con la comunidad. Los proyectos aprobados aparecerán aquí.</p>
-                   </div>
-                </div>
+                <ProjectsGallery 
+                  onViewProfile={handleViewProfile}
+                  onCreateProject={user ? () => setProjectMode('create') : onOpenAuth}
+                  user={user}
+                />
              )
           ) : activeSection === 'admin' && user && isAdmin(user) ? (
             <AdminProjectsPanel user={user} />
