@@ -12,6 +12,7 @@ interface ProjectFromDB {
   description: string;
   images: string[];
   video_url: string | null;
+  website: string | null;
   categories: string[];
   technologies: string[];
   phase: string;

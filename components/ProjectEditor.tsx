@@ -20,6 +20,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({ user, onCancel, on
   const [slogan, setSlogan] = useState('');
   const [description, setDescription] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [website, setWebsite] = useState('');
   const [phase, setPhase] = useState<ProjectPhase>('Idea');
   const [images, setImages] = useState<string[]>([]);
   
@@ -103,6 +104,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({ user, onCancel, on
       description,
       images,
       videoUrl,
+      website: website.trim() || undefined,
       categories,
       technologies,
       phase,
@@ -121,6 +123,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({ user, onCancel, on
     description: description || 'La descripción detallada de tu proyecto aparecerá aquí.',
     images,
     videoUrl,
+    website: website.trim() || undefined,
     categories,
     technologies,
     phase,
@@ -251,6 +254,23 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({ user, onCancel, on
                     placeholder="https://..."
                     value={videoUrl}
                     onChange={e => setVideoUrl(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Website URL */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5 mt-4">
+                  Sitio Web del Proyecto
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <input 
+                    type="url" 
+                    className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-[#D97706] focus:ring-1 focus:ring-[#D97706] outline-none"
+                    placeholder="https://tuproyecto.com"
+                    value={website}
+                    onChange={e => setWebsite(e.target.value)}
                   />
                 </div>
               </div>

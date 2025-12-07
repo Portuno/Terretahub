@@ -162,6 +162,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
         description: project.description,
         images: project.images || [],
         video_url: project.videoUrl || null,
+        website: project.website || null,
         categories: project.categories || [],
         technologies: project.technologies || [],
         phase: project.phase,

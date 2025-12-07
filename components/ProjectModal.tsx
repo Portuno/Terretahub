@@ -195,7 +195,22 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onC
             {/* Description */}
             <div className="mb-6">
               <h2 className="font-serif text-xl text-terreta-dark mb-3">Sobre el Proyecto</h2>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-line">{project.description}</p>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-line mb-4">{project.description}</p>
+              
+              {/* Website Link */}
+              {project.website && (
+                <div className="mt-4">
+                  <a
+                    href={project.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#D97706] text-white rounded-lg hover:bg-[#B45309] transition-colors font-bold text-sm shadow-sm"
+                  >
+                    <ExternalLink size={16} />
+                    Visitar Sitio Web
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Categories & Technologies */}
