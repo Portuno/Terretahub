@@ -13,46 +13,79 @@ import { supabase } from './lib/supabase';
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
   const navigate = useNavigate();
+
+  // Función helper para cargar el perfil del usuario
+  const loadUserProfile = async (userId: string): Promise<AuthUser | null> => {
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('[App] Error al cargar perfil:', profileError);
+        return null;
+      }
+
+      if (profile) {
+        return {
+          id: profile.id,
+          name: profile.name,
+          username: profile.username,
+          email: profile.email,
+          avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+          role: (profile.role as 'normal' | 'admin') || 'normal',
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error('[App] Error en loadUserProfile:', err);
+      return null;
+    }
+  };
 
   // Check for session persistence on mount
   useEffect(() => {
+    let isMounted = true;
+
     const checkSession = async () => {
       try {
+        console.log('[App] Checking session...');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.error('Error al obtener sesión:', sessionError);
+          console.error('[App] Error al obtener sesión:', sessionError);
+          if (isMounted) {
+            setIsLoadingSession(false);
+            setUser(null);
+          }
           return;
         }
         
         if (session?.user) {
-          // Obtener perfil del usuario
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profileError) {
-            console.error('Error al cargar perfil:', profileError);
-            return;
+          console.log('[App] Session found, loading profile...', { userId: session.user.id });
+          const loadedUser = await loadUserProfile(session.user.id);
+          if (isMounted) {
+            setUser(loadedUser);
+            setIsLoadingSession(false);
+            console.log('[App] Session restored', { hasUser: !!loadedUser });
           }
-
-          if (profile) {
-            const safeUser: AuthUser = {
-              id: profile.id,
-              name: profile.name,
-              username: profile.username,
-              email: profile.email,
-              avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
-              role: (profile.role as 'normal' | 'admin') || 'normal',
-            };
-            setUser(safeUser);
+        } else {
+          console.log('[App] No session found');
+          if (isMounted) {
+            setUser(null);
+            setIsLoadingSession(false);
           }
         }
       } catch (err) {
-        console.error('Error en checkSession:', err);
+        console.error('[App] Error en checkSession:', err);
+        if (isMounted) {
+          setIsLoadingSession(false);
+          setUser(null);
+        }
       }
     };
 
@@ -60,43 +93,30 @@ const AppContent: React.FC = () => {
 
     // Escuchar cambios en la autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[App] Auth state changed', { event, hasSession: !!session });
+      
       try {
         if (event === 'SIGNED_OUT' || !session) {
+          console.log('[App] User signed out');
           setUser(null);
-          // No redirigir automáticamente, permitir que el usuario se quede en /app
-        } else if (event === 'SIGNED_IN' && session?.user) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profileError) {
-            console.error('Error al cargar perfil en onAuthStateChange:', profileError);
-            return;
-          }
-
-          if (profile) {
-            const safeUser: AuthUser = {
-              id: profile.id,
-              name: profile.name,
-              username: profile.username,
-              email: profile.email,
-              avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
-              role: (profile.role as 'normal' | 'admin') || 'normal',
-            };
-            setUser(safeUser);
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (session?.user) {
+            console.log('[App] User signed in or token refreshed, loading profile...', { userId: session.user.id });
+            const loadedUser = await loadUserProfile(session.user.id);
+            setUser(loadedUser);
+            console.log('[App] User profile loaded', { hasUser: !!loadedUser });
           }
         }
       } catch (err) {
-        console.error('Error en onAuthStateChange:', err);
+        console.error('[App] Error en onAuthStateChange:', err);
       }
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
 
   const handleLoginSuccess = (loggedInUser: AuthUser) => {
     setUser(loggedInUser);
@@ -114,6 +134,18 @@ const AppContent: React.FC = () => {
     // Permitir acceso a /app sin necesidad de estar logueado
     navigate('/app');
   };
+
+  // Mostrar loading mientras se verifica la sesión
+  if (isLoadingSession) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97706] mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

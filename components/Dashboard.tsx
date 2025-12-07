@@ -16,7 +16,7 @@ import { Notifications } from './Notifications';
 import { supabase } from '../lib/supabase';
 import { isAdmin } from '../lib/userRoles';
 
-// Función para cargar usuarios reales desde Supabase
+// Función para cargar usuarios reales desde Supabase (optimizada)
 const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
   try {
     // Cargar solo perfiles que quieren aparecer en la comunidad
@@ -24,10 +24,11 @@ const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
       .from('profiles')
       .select('id, name, username, avatar, role')
       .eq('show_in_community', true)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50); // Limitar a 50 usuarios para mejor performance
 
     if (profilesError) {
-      console.error('Error al cargar perfiles:', profilesError);
+      console.error('[Dashboard] Error al cargar perfiles:', profilesError);
       return [];
     }
 
@@ -35,58 +36,73 @@ const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
       return [];
     }
 
-    // Para cada perfil, obtener sus tags desde sus proyectos
-    const usersWithTags = await Promise.all(
-      profiles.map(async (profile) => {
-        // Obtener proyectos del usuario para extraer tags
-        const { data: projects } = await supabase
-          .from('projects')
-          .select('categories, technologies')
-          .eq('author_id', profile.id);
+    // Cargar todos los proyectos de una vez (más eficiente)
+    const profileIds = profiles.map(p => p.id);
+    const { data: allProjects } = await supabase
+      .from('projects')
+      .select('author_id, categories, technologies')
+      .in('author_id', profileIds);
 
-        // Extraer tags únicos de categorías y tecnologías
-        const tagsSet = new Set<string>();
-        if (projects) {
-          projects.forEach((project) => {
-            if (project.categories) {
-              project.categories.forEach((tag: string) => tagsSet.add(tag));
-            }
-            if (project.technologies) {
-              project.technologies.forEach((tag: string) => tagsSet.add(tag));
-            }
-          });
+    // Cargar todos los avatares de link_bio_profiles de una vez
+    const { data: linkBioProfiles } = await supabase
+      .from('link_bio_profiles')
+      .select('user_id, avatar')
+      .in('user_id', profileIds);
+
+    // Crear mapas para acceso rápido
+    const projectsByUser = new Map<string, any[]>();
+    if (allProjects) {
+      allProjects.forEach(project => {
+        if (!projectsByUser.has(project.author_id)) {
+          projectsByUser.set(project.author_id, []);
         }
-        const tags = Array.from(tagsSet).slice(0, 5); // Limitar a 5 tags
+        projectsByUser.get(project.author_id)!.push(project);
+      });
+    }
 
-        // Obtener avatar actualizado de link_bio_profiles si existe
-        let finalAvatar = profile.avatar;
-        const { data: linkBioProfile } = await supabase
-          .from('link_bio_profiles')
-          .select('avatar')
-          .eq('user_id', profile.id)
-          .maybeSingle();
-
-        if (linkBioProfile?.avatar) {
-          finalAvatar = linkBioProfile.avatar;
+    const avatarsByUser = new Map<string, string>();
+    if (linkBioProfiles) {
+      linkBioProfiles.forEach(lbp => {
+        if (lbp.avatar) {
+          avatarsByUser.set(lbp.user_id, lbp.avatar);
         }
+      });
+    }
 
-        // Formatear role para mostrar
-        const displayRole = profile.role === 'admin' ? 'ADMIN' : 'MIEMBRO';
+    // Procesar usuarios con los datos ya cargados
+    const usersWithTags = profiles.map((profile) => {
+      // Extraer tags únicos de categorías y tecnologías
+      const tagsSet = new Set<string>();
+      const userProjects = projectsByUser.get(profile.id) || [];
+      userProjects.forEach((project) => {
+        if (project.categories) {
+          project.categories.forEach((tag: string) => tagsSet.add(tag));
+        }
+        if (project.technologies) {
+          project.technologies.forEach((tag: string) => tagsSet.add(tag));
+        }
+      });
+      const tags = Array.from(tagsSet).slice(0, 5); // Limitar a 5 tags
 
-        return {
-          id: profile.id,
-          name: profile.name,
-          role: displayRole,
-          handle: `@${profile.username}`,
-          avatar: finalAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
-          tags: tags.length > 0 ? tags : ['Terreta Hub']
-        };
-      })
-    );
+      // Obtener avatar actualizado de link_bio_profiles si existe
+      const finalAvatar = avatarsByUser.get(profile.id) || profile.avatar;
+
+      // Formatear role para mostrar
+      const displayRole = profile.role === 'admin' ? 'ADMIN' : 'MIEMBRO';
+
+      return {
+        id: profile.id,
+        name: profile.name,
+        role: displayRole,
+        handle: `@${profile.username}`,
+        avatar: finalAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+        tags: tags.length > 0 ? tags : ['Terreta Hub']
+      };
+    });
 
     return usersWithTags;
   } catch (error) {
-    console.error('Error al cargar usuarios:', error);
+    console.error('[Dashboard] Error al cargar usuarios:', error);
     return [];
   }
 };
@@ -138,8 +154,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
       }
     };
 
-    // Refrescar cada 30 segundos para obtener avatares actualizados
-    const interval = setInterval(refreshUserProfile, 30000);
+    // Refrescar cada 5 minutos para obtener avatares actualizados (reducido para mejor performance)
+    const interval = setInterval(refreshUserProfile, 300000);
     
     // Escuchar evento de actualización de avatar
     const handleAvatarUpdate = (event: CustomEvent) => {
