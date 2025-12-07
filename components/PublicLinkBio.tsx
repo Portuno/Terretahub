@@ -246,8 +246,14 @@ export const PublicLinkBio: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 overflow-y-auto">
-      <div className="max-w-md mx-auto min-h-screen shadow-2xl overflow-hidden bg-white">
+    <div 
+      className="w-full min-h-screen overflow-y-auto"
+      style={{ 
+        background: profile.theme.bgType === 'gradient' ? profile.theme.bgColor : undefined,
+        backgroundColor: profile.theme.bgType === 'color' ? profile.theme.bgColor : undefined,
+      }}
+    >
+      <div className="max-w-md mx-auto min-h-screen overflow-hidden">
         <ProfileRenderer profile={profile} />
       </div>
     </div>
