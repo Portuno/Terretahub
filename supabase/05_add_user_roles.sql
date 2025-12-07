@@ -45,8 +45,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 3. ACTUALIZAR POLÍTICAS RLS PARA AGORA POSTS
 -- ============================================
 
--- Eliminar política de eliminación existente
+-- Eliminar políticas de eliminación existentes
 DROP POLICY IF EXISTS "Users can delete own posts" ON agora_posts;
+DROP POLICY IF EXISTS "Admins can delete any post" ON agora_posts;
 
 -- Nueva política: usuarios pueden eliminar sus propios posts
 CREATE POLICY "Users can delete own posts"
@@ -64,8 +65,11 @@ CREATE POLICY "Admins can delete any post"
 
 -- Eliminar políticas existentes
 DROP POLICY IF EXISTS "Published projects are viewable by everyone" ON projects;
+DROP POLICY IF EXISTS "Projects visibility policy" ON projects;
 DROP POLICY IF EXISTS "Users can update own projects" ON projects;
+DROP POLICY IF EXISTS "Admins can update any project" ON projects;
 DROP POLICY IF EXISTS "Users can delete own projects" ON projects;
+DROP POLICY IF EXISTS "Admins can delete any project" ON projects;
 
 -- Nueva política: todos pueden ver proyectos publicados, 
 -- usuarios pueden ver sus propios proyectos (draft/review),
@@ -105,6 +109,8 @@ CREATE POLICY "Admins can delete any project"
 -- Eliminar políticas existentes
 DROP POLICY IF EXISTS "Authenticated users can view contact messages" ON contact_messages;
 DROP POLICY IF EXISTS "Authenticated users can update contact messages" ON contact_messages;
+DROP POLICY IF EXISTS "Admins can view contact messages" ON contact_messages;
+DROP POLICY IF EXISTS "Admins can update contact messages" ON contact_messages;
 
 -- Nueva política: solo admins pueden ver mensajes de contacto
 CREATE POLICY "Admins can view contact messages"
