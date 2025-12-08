@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthUser } from '../types';
+import { HelpCircle, Lightbulb } from 'lucide-react';
 
 type SubmissionState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -132,80 +133,130 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
   const badgeIdle = 'border-amber-200 text-slate-700 hover:border-emerald-500 bg-white/70';
 
   return (
-    <section className="w-full h-full flex flex-col gap-2 rounded-2xl bg-gradient-to-br from-amber-50 via-emerald-50/60 to-orange-50 p-4 shadow-lg border border-amber-100 flex-grow min-h-[calc(100vh-5rem)]">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 shrink-0">
+    <section className="w-full h-full flex flex-col gap-2 rounded-2xl bg-gradient-to-br from-amber-50 via-emerald-50/60 to-orange-50 p-3 shadow-lg border border-amber-100 flex-grow min-h-[calc(100vh-4rem)]">
+      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-1 shrink-0">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 mb-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
             Recursos (En construcción)
           </p>
-          <h2 className="text-2xl font-serif font-bold text-slate-900 leading-tight">
+          <h2 className="text-xl font-serif font-bold text-slate-900 leading-tight">
             Panel de Colaboración
           </h2>
         </div>
-        <p className="text-sm text-slate-700 max-w-xl text-right md:text-right hidden md:block">
+        <p className="text-xs text-slate-700 max-w-xl text-right md:text-right hidden md:block">
           Siembra tu necesidad aquí para priorizar el contenido.
-        </p>
-        <p className="text-sm text-slate-700 md:hidden">
-           Siembra tu necesidad aquí para priorizar el contenido.
         </p>
       </header>
 
-      <div className="flex-1 flex flex-col gap-4 rounded-xl bg-white/90 p-4 shadow-inner border border-white/70 overflow-y-auto">
+      <div className="flex-1 flex flex-col gap-3 rounded-xl bg-white/90 p-3 shadow-inner border border-white/70 overflow-y-auto">
         
-        {/* Top Row: Type and Vertical side by side on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">1. Tipo de Recurso</p>
-              <div className="flex flex-wrap gap-1.5">
-                {RESOURCE_TYPES.map((type) => {
-                  const isActive = selectedTypes.includes(type);
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => toggleItem(type, selectedTypes, setSelectedTypes)}
-                      className={`${badgeBase} ${isActive ? badgeActive : badgeIdle} px-2.5 py-1 text-xs`}
-                    >
-                      {type}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        {/* Encapsulated Options: Types & Verticals */}
+        <div className="bg-white/50 rounded-xl p-3 shadow-sm border border-slate-100 shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. Resource Types */}
+                <div className="flex flex-col gap-2 relative">
+                  <div className="flex items-center gap-1">
+                      <p className="text-xs font-bold text-terreta-dark uppercase tracking-wide">Tipo de Recurso</p>
+                      <div className="group relative">
+                          <HelpCircle size={12} className="text-terreta-gold cursor-help" />
+                          <div className="absolute left-full top-0 ml-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                              Selecciona qué tipo de ayuda estás buscando para tu proyecto.
+                          </div>
+                      </div>
+                  </div>
+                  <div className="w-8 h-0.5 bg-[#E6DEC9] rounded-full mb-1"></div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {RESOURCE_TYPES.map((type) => {
+                      const isActive = selectedTypes.includes(type);
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => toggleItem(type, selectedTypes, setSelectedTypes)}
+                          className={`
+                            inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs transition focus:outline-none focus:ring-1 focus:ring-emerald-500
+                            ${isActive 
+                                ? 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-sm font-semibold' 
+                                : 'border-slate-200 text-slate-600 hover:border-emerald-400 bg-white'
+                            }
+                          `}
+                        >
+                          {type}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">2. Vertical de Interés</p>
-              <div className="flex flex-wrap gap-1.5">
-                {VERTICALS.map((vertical) => {
-                  const isActive = selectedVerticals.includes(vertical);
-                  return (
-                    <button
-                      key={vertical}
-                      type="button"
-                      onClick={() => toggleItem(vertical, selectedVerticals, setSelectedVerticals)}
-                      className={`${badgeBase} ${isActive ? badgeActive : badgeIdle} px-2.5 py-1 text-xs`}
-                    >
-                      {vertical}
-                    </button>
-                  );
-                })}
-              </div>
+                {/* 2. Verticals */}
+                <div className="flex flex-col gap-2 relative border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-3">
+                  <div className="flex items-center gap-1">
+                      <p className="text-xs font-bold text-terreta-dark uppercase tracking-wide">Vertical de Interés</p>
+                      <div className="group relative">
+                          <HelpCircle size={12} className="text-terreta-gold cursor-help" />
+                          <div className="absolute right-0 top-6 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                              Elige el sector al que pertenece tu consulta.
+                          </div>
+                      </div>
+                  </div>
+                  <div className="w-8 h-0.5 bg-[#E6DEC9] rounded-full mb-1"></div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {VERTICALS.map((vertical) => {
+                      const isActive = selectedVerticals.includes(vertical);
+                      // Determine color based on vertical name
+                      let activeClass = 'border-slate-600 bg-slate-50 text-slate-700';
+                      if (vertical === 'Tecnología' || vertical === 'Salud') {
+                          activeClass = 'border-emerald-600 bg-emerald-50 text-emerald-700';
+                      } else if (vertical === 'Arte & Educación' || vertical === 'Comunidad') {
+                          activeClass = 'border-[#8D6E63] bg-[#FDF8F6] text-[#8D6E63]'; // Arcilla/Clay
+                      } else {
+                          activeClass = 'border-amber-500 bg-amber-50 text-amber-700';
+                      }
+
+                      return (
+                        <button
+                          key={vertical}
+                          type="button"
+                          onClick={() => toggleItem(vertical, selectedVerticals, setSelectedVerticals)}
+                          className={`
+                            inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs transition focus:outline-none focus:ring-1 focus:ring-emerald-500
+                            ${isActive 
+                                ? `${activeClass} shadow-sm font-semibold` 
+                                : 'border-slate-200 text-slate-600 hover:border-slate-400 bg-white'
+                            }
+                          `}
+                        >
+                          {vertical}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
             </div>
         </div>
 
-        {/* Middle Row: Formats */}
-        <div className="grid gap-2 shrink-0">
-          <label className="text-xs font-bold text-emerald-800 uppercase tracking-wide">3. Formatos preferidos</label>
-          <div className="flex flex-wrap gap-2 items-center">
+        {/* 3. Formats */}
+        <div className="grid gap-2 shrink-0 px-1">
+          <div className="flex items-center gap-1">
+               <label className="text-xs font-bold text-terreta-dark uppercase tracking-wide">Formatos preferidos</label>
+               <div className="group relative">
+                  <HelpCircle size={12} className="text-terreta-gold cursor-help" />
+                   <div className="absolute left-0 bottom-6 w-48 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                      ¿Cómo prefieres consumir este contenido? (PDF, Video, Taller...)
+                   </div>
+               </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 items-center pb-1 border-b border-terreta-accent/30 focus-within:border-terreta-accent transition-colors">
             {formatTags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800 border border-emerald-200"
+                className="inline-flex items-center gap-1 rounded-full bg-[#EBE5DA] px-2 py-0.5 text-xs text-terreta-dark border border-[#D1C9BC]"
               >
                 {tag}
                 <button
                   type="button"
-                  className="text-emerald-700 hover:text-emerald-900 focus:outline-none font-bold ml-1"
+                  className="text-terreta-dark/60 hover:text-terreta-dark focus:outline-none font-bold ml-1"
                   onClick={() => handleRemoveTag(tag)}
                 >
                   ×
@@ -217,36 +268,42 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                 onChange={(event) => setTagInput(event.target.value)}
                 onKeyDown={handleTagKeyDown}
                 placeholder="Ej: videos cortos, PDF... (Enter)"
-                className="flex-1 min-w-[200px] bg-transparent text-sm text-slate-800 outline-none placeholder-slate-400 border-b border-transparent focus:border-emerald-300 transition-colors"
+                className="flex-1 min-w-[200px] bg-transparent text-sm text-slate-600 placeholder-slate-400 outline-none"
               />
           </div>
         </div>
 
-        {/* Bottom Row: Details - Expands to fill space */}
-        <div className="flex flex-col gap-2 flex-1 min-h-[120px]">
+        {/* 4. Details */}
+        <div className="flex flex-col gap-2 flex-1 min-h-[100px] px-1">
           <div className="flex items-center justify-between shrink-0">
-            <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">4. Detalles</p>
+            <div className="flex items-center gap-1">
+                <p className="text-xs font-bold text-terreta-dark uppercase tracking-wide">Detalles</p>
+                 <div className="group relative">
+                  <HelpCircle size={12} className="text-terreta-gold cursor-help" />
+                   <div className="absolute left-0 bottom-6 w-64 bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                      Cuéntanos más sobre lo que necesitas. Sé específico para que podamos ayudarte mejor.
+                   </div>
+               </div>
+            </div>
+            
             <button
               type="button"
               onClick={rotatePlaceholder}
-              className="text-[10px] text-emerald-600 hover:text-emerald-800 flex items-center gap-1"
+              className="group flex items-center gap-1 px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 text-[10px] text-amber-700 transition-colors border border-amber-200/50"
             >
-               <span>Inspiración</span>
+               <Lightbulb size={10} className="text-amber-500 group-hover:text-amber-600" />
+               <span className="font-semibold">Inspiración</span>
             </button>
           </div>
           <textarea
             value={details}
             onChange={(event) => setDetails(event.target.value)}
             placeholder={placeholder}
-            className="flex-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 resize-none"
+            className="flex-1 w-full rounded-lg border-b-2 border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:border-terreta-accent focus:bg-white transition-all resize-none outline-none"
           />
         </div>
 
-        <div className="flex items-center justify-end pt-2 border-t border-emerald-100/50 shrink-0">
-            <div className="flex items-center gap-3 w-full justify-between">
-             <span className="text-[10px] text-slate-400 italic hidden sm:block">
-                Tu aporte construye la comunidad.
-             </span>
+        <div className="flex items-center justify-end pt-2 border-t border-slate-100 shrink-0">
              <div className="flex items-center gap-3 ml-auto">
                 {submitState === 'success' && (
                 <span className="text-xs text-emerald-700 font-bold animate-pulse">¡Recibido!</span>
@@ -263,7 +320,6 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                 {submitState === 'loading' ? '...' : 'Enviar'}
                 </button>
              </div>
-            </div>
         </div>
       </div>
     </section>

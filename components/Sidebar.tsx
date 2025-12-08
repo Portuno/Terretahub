@@ -66,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar - Desktop & Mobile */}
       <aside className={`
-        w-64 lg:w-56 bg-[#EBE5DA] h-screen fixed left-0 top-0 flex flex-col border-r border-[#D1C9BC]/30 z-40
+        w-56 md:w-48 bg-[#EBE5DA] h-screen fixed left-0 top-0 flex flex-col border-r border-[#D1C9BC]/30 z-40
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 md:relative md:z-20
         transition-transform duration-300 ease-in-out
@@ -100,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="mb-6">
              <button
               onClick={() => onNavigate('perfil')}
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 group border border-[#D97706]/20 ${
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group border border-[#D97706]/20 ${
                 activeSection === 'perfil'
                   ? 'bg-white shadow-md' 
                   : 'bg-white/40 hover:bg-white'
@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 group ${
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group ${
                 isActive 
                   ? 'bg-terreta-dark text-white shadow-lg' 
                   : 'text-terreta-dark/70 hover:bg-white/40 hover:text-terreta-dark'

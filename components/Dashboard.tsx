@@ -323,7 +323,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-64 lg:ml-56 flex flex-col min-h-screen transition-all duration-300">
+      <main className="flex-1 flex flex-col min-h-screen transition-all duration-300">
         
         {/* Top Navbar */}
         <header className="bg-white border-b border-gray-100 h-14 md:h-16 px-4 flex items-center justify-between sticky top-0 z-10">
