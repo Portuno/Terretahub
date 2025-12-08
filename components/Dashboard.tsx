@@ -323,10 +323,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-[12rem] lg:ml-[11rem] flex flex-col min-h-screen transition-all duration-300">
+      <main className="flex-1 md:ml-[11rem] lg:ml-[10rem] flex flex-col min-h-screen transition-all duration-300">
         
         {/* Top Navbar */}
-        <header className="bg-white border-b border-gray-100 h-16 md:h-20 px-2 md:px-4 md:pl-4 pl-2 flex items-center justify-between sticky top-0 z-10">
+        <header className="bg-white border-b border-gray-100 h-16 md:h-18 px-2 md:px-3 md:pl-3 pl-2 flex items-center justify-between sticky top-0 z-10">
             <h2 className="font-serif text-lg md:text-2xl text-terreta-dark truncate">
                 {activeSection === 'agora' && 'Ágora Comunitario'}
                 {activeSection === 'comunidad' && 'Explorar Comunidad'}
@@ -373,7 +373,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto px-0 md:px-2 pb-4 md:pb-6">
+        <div className="flex-1 overflow-y-auto px-0 md:px-1 pb-3 md:pb-5">
           
           {activeSection === 'public_profile' && viewingProfileHandle ? (
              <PublicProfile handle={viewingProfileHandle} />
@@ -406,7 +406,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
                 />
              )
           ) : activeSection === 'recursos' ? (
-            <div className="w-full px-0 md:px-2 py-2 md:py-3">
+            <div className="w-full px-0 md:px-1 py-1 md:py-2">
               <ResourceCollabPanel user={currentUser} />
             </div>
           ) : activeSection === 'admin' && currentUser && isAdmin(currentUser) ? (
@@ -420,7 +420,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
               <p className="max-w-md mx-auto text-gray-500">No tienes permisos de administrador para acceder a esta sección.</p>
             </div>
           ) : activeSection === 'comunidad' ? (
-            <div className="w-full py-3">
+            <div className="w-full py-2">
               <div className="w-full animate-fade-in">
                   {/* Search Bar */}
                   <div className="relative mb-10 group">
