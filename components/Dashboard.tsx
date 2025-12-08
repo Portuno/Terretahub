@@ -15,6 +15,7 @@ import { Toast } from './Toast';
 import { Notifications } from './Notifications';
 import { supabase } from '../lib/supabase';
 import { isAdmin } from '../lib/userRoles';
+import { ResourceCollabPanel } from './ResourceCollabPanel';
 
 // Función para cargar usuarios reales desde Supabase (optimizada)
 const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
@@ -404,6 +405,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
                   user={currentUser}
                 />
              )
+          ) : activeSection === 'recursos' ? (
+            <div className="p-4 md:p-8">
+              <ResourceCollabPanel user={currentUser} />
+            </div>
           ) : activeSection === 'admin' && currentUser && isAdmin(currentUser) ? (
             <AdminProjectsPanel user={currentUser} />
           ) : activeSection === 'admin' && (!currentUser || !isAdmin(currentUser)) ? (
