@@ -323,10 +323,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-[15rem] lg:ml-[14rem] flex flex-col min-h-screen transition-all duration-300">
+      <main className="flex-1 md:ml-[12rem] lg:ml-[11rem] flex flex-col min-h-screen transition-all duration-300">
         
         {/* Top Navbar */}
-        <header className="bg-white border-b border-gray-100 h-16 md:h-20 px-3 md:px-5 md:pl-5 pl-3 flex items-center justify-between sticky top-0 z-10">
+        <header className="bg-white border-b border-gray-100 h-16 md:h-20 px-2 md:px-4 md:pl-4 pl-2 flex items-center justify-between sticky top-0 z-10">
             <h2 className="font-serif text-lg md:text-2xl text-terreta-dark truncate">
                 {activeSection === 'agora' && 'Ágora Comunitario'}
                 {activeSection === 'comunidad' && 'Explorar Comunidad'}
