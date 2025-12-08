@@ -132,8 +132,8 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
   const badgeIdle = 'border-amber-200 text-slate-700 hover:border-emerald-500 bg-white/70';
 
   return (
-    <section className="w-full mt-0 mb-3 flex flex-col gap-3 rounded-2xl bg-gradient-to-br from-amber-50 via-emerald-50/60 to-orange-50 p-4 shadow-lg border border-amber-100">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+    <section className="w-full h-full flex flex-col gap-2 rounded-2xl bg-gradient-to-br from-amber-50 via-emerald-50/60 to-orange-50 p-4 shadow-lg border border-amber-100 flex-grow min-h-[calc(100vh-5rem)]">
+      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 shrink-0">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 mb-1">
             Recursos (En construcción)
@@ -150,10 +150,10 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
         </p>
       </header>
 
-      <div className="grid gap-4 rounded-xl bg-white/90 p-4 shadow-inner border border-white/70">
+      <div className="flex-1 flex flex-col gap-4 rounded-xl bg-white/90 p-4 shadow-inner border border-white/70 overflow-y-auto">
         
         {/* Top Row: Type and Vertical side by side on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
             <div className="flex flex-col gap-2">
               <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">1. Tipo de Recurso</p>
               <div className="flex flex-wrap gap-1.5">
@@ -194,7 +194,7 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
         </div>
 
         {/* Middle Row: Formats */}
-        <div className="grid gap-2">
+        <div className="grid gap-2 shrink-0">
           <label className="text-xs font-bold text-emerald-800 uppercase tracking-wide">3. Formatos preferidos</label>
           <div className="flex flex-wrap gap-2 items-center">
             {formatTags.map((tag) => (
@@ -222,9 +222,9 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
           </div>
         </div>
 
-        {/* Bottom Row: Details */}
-        <div className="grid gap-2">
-          <div className="flex items-center justify-between">
+        {/* Bottom Row: Details - Expands to fill space */}
+        <div className="flex flex-col gap-2 flex-1 min-h-[120px]">
+          <div className="flex items-center justify-between shrink-0">
             <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">4. Detalles</p>
             <button
               type="button"
@@ -238,11 +238,11 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
             value={details}
             onChange={(event) => setDetails(event.target.value)}
             placeholder={placeholder}
-            className="min-h-[80px] w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 resize-y"
+            className="flex-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 resize-none"
           />
         </div>
 
-        <div className="flex items-center justify-end pt-2 border-t border-emerald-100/50">
+        <div className="flex items-center justify-end pt-2 border-t border-emerald-100/50 shrink-0">
             <div className="flex items-center gap-3 w-full justify-between">
              <span className="text-[10px] text-slate-400 italic hidden sm:block">
                 Tu aporte construye la comunidad.

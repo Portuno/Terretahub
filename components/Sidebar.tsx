@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       `}>
       {/* Logo Area */}
       <div 
-        className="p-8 pb-10 flex items-center gap-3 cursor-pointer group relative"
+        className="px-6 py-4 flex items-center gap-3 cursor-pointer group relative h-14 md:h-16"
         onClick={() => handleNavigate('agora')}
       >
         {/* Close button for mobile */}
