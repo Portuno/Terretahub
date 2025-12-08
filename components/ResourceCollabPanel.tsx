@@ -132,7 +132,7 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
   const badgeIdle = 'border-amber-200 text-slate-700 hover:border-emerald-500 bg-white/70';
 
   return (
-    <section className="w-full my-3 md:my-5 flex flex-col gap-5 rounded-2xl bg-gradient-to-br from-amber-50 via-emerald-50/60 to-orange-50 p-4 md:p-6 lg:p-7 shadow-lg border border-amber-100">
+    <section className="w-full mt-1 mb-4 flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-amber-50 via-emerald-50/60 to-orange-50 p-3 md:p-5 lg:p-6 shadow-lg border border-amber-100">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">
           Recursos (En construcción)

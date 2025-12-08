@@ -406,7 +406,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
                 />
              )
           ) : activeSection === 'recursos' ? (
-            <div className="w-full px-3 lg:px-4 py-3 md:py-4">
+            <div className="w-full px-2 lg:px-3 py-2 md:py-3">
               <ResourceCollabPanel user={currentUser} />
             </div>
           ) : activeSection === 'admin' && currentUser && isAdmin(currentUser) ? (
