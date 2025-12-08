@@ -7,7 +7,6 @@ interface FeedbackModalProps {
 }
 
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose }) => {
-  const [name, setName] = useState('');
   const [identityMode, setIdentityMode] = useState<'user' | 'anon'>('user');
   const [username, setUsername] = useState<string>('anónimo');
   const [feedback, setFeedback] = useState('');
@@ -90,7 +89,6 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
       setTimeout(() => {
         setSuccess(false);
         setFeedback('');
-        setName('');
         setIdentityMode(authorUsername === 'anonimo' ? 'anon' : 'user');
         onClose();
       }, 2000);
@@ -177,23 +175,6 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="feedback-name" className="text-xs font-bold text-[#D97706] uppercase tracking-widest">
-                  Nombre (opcional o anónimo)
-                </label>
-                <input
-                  id="feedback-name"
-                  name="feedback-name"
-                  type="text"
-                  autoComplete="name"
-                  placeholder="Pon tu nombre o déjalo vacío para ser Anónimo"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-xl p-3 text-terreta-dark placeholder-gray-400 focus:border-[#D97706] focus:ring-1 focus:ring-[#D97706] outline-none text-sm font-sans"
-                  aria-label="Nombre para el feedback"
-                />
-              </div>
-              
               <div className="space-y-2">
                 <label htmlFor="feedback-message" className="text-xs font-bold text-[#D97706] uppercase tracking-widest">
                   Mensaje
