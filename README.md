@@ -1,4 +1,4 @@
-# 🍊 Terreta Hub
+# 🍊 Terreta Hub | Red Social Valenciana
 
 **La comunidad digital para el ecosistema emprendedor y creativo de Valencia.**
 
