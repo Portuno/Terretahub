@@ -73,20 +73,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const root = document.documentElement;
     localStorage.setItem('terreta-theme', theme);
     
-    // Apply specific accent color variables
-    // We convert hex to RGB for Tailwind opacity support (e.g. text-terreta-accent/50)
-    // Tailwind config uses: accent: 'rgb(var(--accent) / <alpha-value>)'
+    // Remove all previous theme classes
+    root.classList.remove('theme-tierra', 'theme-fuego', 'theme-agua', 'theme-aire');
     
-    let accentRGB = '217 119 6'; // Tierra default
+    // Add new theme class
+    root.classList.add(`theme-${theme}`);
     
-    if (theme === 'fuego') accentRGB = '239 68 68';
-    else if (theme === 'agua') accentRGB = '59 130 246';
-    else if (theme === 'aire') accentRGB = '15 23 42'; // Slate 900 for high contrast text/elements in Aire theme
-    
-    root.style.setProperty('--accent', accentRGB);
-    
-    // Optional: You could switch other vars here for Dark Mode if 'Aire' or 'Fuego' implies it
-    // For now we just switch accent as the primary request was about the Oracle selector.
+    // Remove manual property to let CSS classes take over
+    root.style.removeProperty('--accent');
 
   }, [theme]);
 
