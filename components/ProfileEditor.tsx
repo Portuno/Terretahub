@@ -209,9 +209,8 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   
-  // File input ref for avatar and CV
+  // File input ref for avatar
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cvInputRef = useRef<HTMLInputElement>(null);
 
   // Gradient State Helpers
   const isGradient = profile.theme.bgType === 'gradient';
@@ -351,7 +350,27 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
           if (userProfile) {
             setShowInCommunity(userProfile.show_in_community !== false); // default true
             if (userProfile.cv_url) {
-              setProfile(prev => ({ ...prev, cvUrl: userProfile.cv_url }));
+              setProfile(prev => {
+                const hasCvBlock = prev.blocks.some(b => b.type === 'cv');
+                if (!hasCvBlock) {
+                  return {
+                    ...prev,
+                    cvUrl: userProfile.cv_url,
+                    blocks: [
+                      ...prev.blocks,
+                      {
+                        id: 'cv-' + Date.now(),
+                        type: 'cv',
+                        title: 'Descargar CV',
+                        url: userProfile.cv_url,
+                        isVisible: true,
+                        icon: 'none'
+                      }
+                    ]
+                  };
+                }
+                return { ...prev, cvUrl: userProfile.cv_url };
+              });
             }
           }
           
@@ -373,7 +392,27 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
           if (userProfile) {
             setShowInCommunity(userProfile.show_in_community !== false); // default true
             if (userProfile.cv_url) {
-              setProfile(prev => ({ ...prev, cvUrl: userProfile.cv_url }));
+              setProfile(prev => {
+                const hasCvBlock = prev.blocks.some(b => b.type === 'cv');
+                if (!hasCvBlock) {
+                  return {
+                    ...prev,
+                    cvUrl: userProfile.cv_url,
+                    blocks: [
+                      ...prev.blocks,
+                      {
+                        id: 'cv-' + Date.now(),
+                        type: 'cv',
+                        title: 'Descargar CV',
+                        url: userProfile.cv_url,
+                        isVisible: true,
+                        icon: 'none'
+                      }
+                    ]
+                  };
+                }
+                return { ...prev, cvUrl: userProfile.cv_url };
+              });
             }
           }
         }
@@ -637,7 +676,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
     }
   };
 
-  const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBlockCVUpload = async (e: React.ChangeEvent<HTMLInputElement>, blockId: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -655,7 +694,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
     try {
       const fileExt = file.name.split('.').pop();
       // Generate a clean filename with timestamp to avoid caching issues
-      const fileName = `${user.id}/cv_${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}/cv_${blockId}_${Date.now()}.${fileExt}`;
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -672,51 +711,15 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
         .from('cv_files')
         .getPublicUrl(fileName);
 
-      // Update Profile in DB
-      const { error: dbError } = await supabase
-        .from('profiles')
-        .update({ cv_url: publicUrl })
-        .eq('id', user.id);
-
-      if (dbError) throw dbError;
-
-      // Update Local State
-      setProfile(prev => ({ ...prev, cvUrl: publicUrl }));
+      updateBlock(blockId, { url: publicUrl });
       alert('CV subido correctamente');
     } catch (error: any) {
       console.error('Error uploading CV:', error);
       alert('Error al subir el CV: ' + error.message);
     } finally {
       setCvUploading(false);
-      // Reset input
-      if (cvInputRef.current) cvInputRef.current.value = '';
-    }
-  };
-
-  const handleDeleteCV = async () => {
-    if (!confirm('¿Estás seguro de que quieres eliminar tu CV?')) return;
-
-    setCvUploading(true);
-    try {
-      // We don't necessarily delete the file from storage to avoid complexity with file paths, 
-      // but we remove the reference from the profile. 
-      // If strict cleanup is needed, we would need to store the path or parse it from the URL.
-      
-      // Update Profile in DB
-      const { error: dbError } = await supabase
-        .from('profiles')
-        .update({ cv_url: null })
-        .eq('id', user.id);
-
-      if (dbError) throw dbError;
-
-      // Update Local State
-      setProfile(prev => ({ ...prev, cvUrl: undefined }));
-    } catch (error: any) {
-      console.error('Error deleting CV:', error);
-      alert('Error al eliminar el CV: ' + error.message);
-    } finally {
-      setCvUploading(false);
+      // Clear the input value to allow re-uploading the same file
+      e.target.value = '';
     }
   };
 
@@ -741,10 +744,10 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
       id: Date.now().toString(),
       type,
       isVisible: true,
-      title: type === 'link' ? 'Nuevo Enlace' : type === 'header' ? 'Nueva Sección' : type === 'video' ? 'Video Destacado' : type === 'music' ? 'Canción' : type === 'gallery' ? 'Galería' : '',
+      title: type === 'link' ? 'Nuevo Enlace' : type === 'header' ? 'Nueva Sección' : type === 'video' ? 'Video Destacado' : type === 'music' ? 'Canción' : type === 'gallery' ? 'Galería' : type === 'cv' ? 'Descargar CV' : '',
       url: '',
       content: type === 'text' ? 'Escribe algo aquí...' : '',
-      icon: 'none',
+      icon: type === 'cv' ? 'none' : 'none', // Default icon for CV could be none or maybe we force one in render
       images: type === 'gallery' ? [] : undefined
     };
     setProfile(prev => ({ ...prev, blocks: [...prev.blocks, newBlock] }));
@@ -938,72 +941,6 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
                 </div>
               </section>
 
-              {/* CV Upload Section */}
-              <section className="space-y-4">
-                <h3 className="font-serif text-xl text-terreta-dark">Currículum Vitae</h3>
-                <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-[#3E2723]/10 flex items-center justify-center text-[#3E2723]">
-                      <FileText size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-sm text-terreta-dark">Tu CV en PDF</h4>
-                      <p className="text-xs text-gray-500">Sube tu CV para que los visitantes puedan descargarlo (Max 5MB)</p>
-                    </div>
-                    <div>
-                      <input 
-                        type="file" 
-                        ref={cvInputRef}
-                        className="hidden" 
-                        accept="application/pdf"
-                        onChange={handleCVUpload}
-                      />
-                      {profile.cvUrl ? (
-                        <div className="flex items-center gap-2">
-                          <a 
-                            href={profile.cvUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs font-bold text-[#D97706] hover:underline"
-                          >
-                            Ver actual
-                          </a>
-                          <span className="text-gray-300">|</span>
-                          <button 
-                            onClick={handleDeleteCV}
-                            disabled={cvUploading}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar CV"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                          <button 
-                            onClick={() => cvInputRef.current?.click()}
-                            disabled={cvUploading}
-                            className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
-                            title="Reemplazar CV"
-                          >
-                            <Upload size={16} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button 
-                          onClick={() => cvInputRef.current?.click()}
-                          disabled={cvUploading}
-                          className="bg-white border border-gray-200 hover:border-[#D97706] text-gray-600 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2"
-                        >
-                          {cvUploading ? (
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>
-                          ) : (
-                            <Upload size={14} />
-                          )}
-                          Subir PDF
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </section>
 
               {/* Socials Section */}
               <section className="space-y-4">
@@ -1112,7 +1049,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
                          </div>
                          
                          <div className="space-y-3 pl-6">
-                            {(block.type === 'link' || block.type === 'header' || block.type === 'video' || block.type === 'music') && (
+                            {(block.type === 'link' || block.type === 'header' || block.type === 'video' || block.type === 'music' || block.type === 'cv') && (
                               <div className="flex gap-2">
                                 <input 
                                   type="text"
@@ -1179,6 +1116,37 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
                                         accept="image/*"
                                         className="hidden"
                                         onChange={(e) => handleGalleryUpload(e, block.id)}
+                                      />
+                                   </label>
+                                </div>
+                              </div>
+                            )}
+                             {block.type === 'cv' && (
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                   <div className="h-10 w-10 rounded-lg bg-orange-50 flex items-center justify-center text-[#D97706]">
+                                      <FileText size={20} />
+                                   </div>
+                                   <div className="flex-1 overflow-hidden">
+                                      {block.url ? (
+                                        <div className="flex flex-col">
+                                          <span className="text-xs font-bold text-gray-700 truncate">CV Cargado</span>
+                                          <a href={block.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[#D97706] hover:underline truncate">
+                                            Ver archivo
+                                          </a>
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-400">No hay archivo seleccionado</span>
+                                      )}
+                                   </div>
+                                   <label className="cursor-pointer bg-white border border-gray-200 hover:border-[#D97706] text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1">
+                                      <Upload size={12} />
+                                      <span>{block.url ? 'Cambiar' : 'Subir'}</span>
+                                      <input 
+                                        type="file" 
+                                        accept="application/pdf"
+                                        className="hidden"
+                                        onChange={(e) => handleBlockCVUpload(e, block.id)}
                                       />
                                    </label>
                                 </div>
@@ -1924,25 +1892,6 @@ export const ProfileRenderer: React.FC<{ profile: LinkBioProfile; profileUserId?
           {profile.socials.website && <a href={profile.socials.website} target="_blank"><Globe size={20} style={{ color: theme.textColor }} /></a>}
         </div>
 
-        {/* CV Download Button */}
-        {profile.cvUrl && (
-          <div className="w-full max-w-[280px] mb-6">
-            <a 
-              href={profile.cvUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-transform hover:scale-[1.02] active:scale-95 shadow-sm border-2"
-              style={{
-                backgroundColor: 'rgba(62, 39, 35, 0.05)',
-                borderColor: '#3E2723',
-                color: '#3E2723'
-              }}
-            >
-              <FileText size={18} />
-              <span>Ver Currículum Vitae</span>
-            </a>
-          </div>
-        )}
 
         {/* Blocks */}
         <div className="w-full max-w-[280px]">
@@ -1992,6 +1941,22 @@ export const ProfileRenderer: React.FC<{ profile: LinkBioProfile; profileUserId?
                   <span>{block.title}</span>
                 </a>
               );
+            }
+
+            if (block.type === 'cv' && block.url) {
+               return (
+                  <a 
+                    key={block.id} 
+                    href={block.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className={getBtnClass()}
+                    style={getBtnStyle()}
+                  >
+                    <FileText size={18} className="absolute left-4 opacity-90" />
+                    <span>{block.title || 'Descargar CV'}</span>
+                  </a>
+               );
             }
 
             if (block.type === 'video' && block.url) {

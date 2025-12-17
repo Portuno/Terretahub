@@ -35,7 +35,7 @@ export interface AuthUser {
 
 // --- LINK IN BIO TYPES ---
 
-export type BlockType = 'link' | 'text' | 'header' | 'video' | 'music' | 'gallery';
+export type BlockType = 'link' | 'text' | 'header' | 'video' | 'music' | 'gallery' | 'cv';
 
 export interface BioBlock {
   id: string;
