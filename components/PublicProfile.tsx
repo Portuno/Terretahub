@@ -42,12 +42,15 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ handle }) => {
           profileUserId = linkBioBySlug.user_id;
           const { data: profileFromDb } = await supabase
             .from('profiles')
-            .select('username')
+            .select('username, cv_url')
             .eq('id', linkBioBySlug.user_id)
             .single();
           
           if (profileFromDb) {
             username = profileFromDb.username;
+            if (profileFromDb.cv_url) {
+              (profileData as any).cv_url = profileFromDb.cv_url;
+            }
           }
         } else {
           // Si no, buscar por username en profiles
@@ -78,6 +81,10 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ handle }) => {
 
           if (linkBioByUsername) {
             profileData = linkBioByUsername;
+            // Add cv_url from userProfile (which comes from profiles table)
+            if (userProfile && userProfile.cv_url) {
+              (profileData as any).cv_url = userProfile.cv_url;
+            }
           } else {
             // Si no tiene link_bio_profile, generar uno básico desde el perfil
             // Obtener tags desde proyectos
@@ -110,6 +117,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ handle }) => {
               displayName: userProfile.name,
               bio: bio,
               avatar: userProfile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+              cvUrl: userProfile.cv_url, // Add CV URL
               socials: {},
               blocks: [
                 { id: '1', type: 'header', title: 'Sobre Mí', isVisible: true },
@@ -138,6 +146,7 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ handle }) => {
             displayName: profileData.display_name,
             bio: profileData.bio || '',
             avatar: profileData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+            cvUrl: (profileData as any).cv_url, // Add CV URL
             socials: (profileData.socials as any) || {},
             blocks: (profileData.blocks as any) || [],
             theme: (profileData.theme as any) || THEMES[0]

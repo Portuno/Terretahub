@@ -24,7 +24,9 @@ export const PillarsModal: React.FC<PillarsModalProps> = ({ isOpen, onClose }) =
     if (isOpen) {
       setShouldRender(true);
       // Small delay to trigger CSS transition
-      setTimeout(() => setIsVisible(true), 50);
+      requestAnimationFrame(() => {
+          setIsVisible(true);
+      });
       document.body.style.overflow = 'hidden';
     } else {
       setIsVisible(false);
@@ -32,7 +34,7 @@ export const PillarsModal: React.FC<PillarsModalProps> = ({ isOpen, onClose }) =
       const timer = setTimeout(() => {
         setShouldRender(false);
         document.body.style.overflow = 'unset';
-      }, 700);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -40,16 +42,16 @@ export const PillarsModal: React.FC<PillarsModalProps> = ({ isOpen, onClose }) =
   if (!shouldRender) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 transition-opacity duration-700 ease-out-expo ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 ${isVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}>
       {/* Backdrop with Blur - Clicking here closes the modal */}
       <div 
-        className="absolute inset-0 bg-black/70 backdrop-blur-md transition-all duration-700 ease-out"
+        className={`absolute inset-0 bg-black/80 transition-all duration-500 ease-out ${isVisible ? 'opacity-100 backdrop-blur-sm' : 'opacity-0 backdrop-blur-none'}`}
         onClick={onClose}
       ></div>
 
       {/* Modal Container */}
       <div 
-        className={`relative w-full max-w-5xl bg-[#2C1E1A] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/5 transform transition-all duration-800 cubic-bezier(0.16, 1, 0.3, 1) ${isVisible ? 'scale-100 translate-y-0 opacity-100' : 'scale-90 translate-y-16 opacity-0'}`}
+        className={`relative w-full max-w-5xl bg-[#2C1E1A] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/5 transform transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) ${isVisible ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-8 opacity-0'}`}
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -65,19 +67,19 @@ export const PillarsModal: React.FC<PillarsModalProps> = ({ isOpen, onClose }) =
         <div className="p-8 md:p-16 flex flex-col items-center w-full">
             
             {/* Center Subtitle */}
-            <div className={`text-center mb-2 transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className={`text-center mb-2 transition-all duration-700 delay-100 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                 <h3 className="text-[#C5A065] text-[10px] md:text-xs tracking-[0.3em] font-sans uppercase font-semibold">
                     NUESTROS PILARES
                 </h3>
             </div>
             
             {/* Big Title "Identidad" */}
-            <h2 className={`font-serif text-5xl md:text-7xl lg:text-8xl text-white mb-12 md:mb-16 tracking-tight font-medium text-center transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <h2 className={`font-serif text-5xl md:text-7xl lg:text-8xl text-white mb-12 md:mb-16 tracking-tight font-medium text-center transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
                 Identidad
             </h2>
 
             {/* Grid Layout */}
-            <div className={`w-full grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-24 gap-y-0 transition-all duration-1000 delay-500 ease-out-expo ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
+            <div className={`w-full grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-24 gap-y-0 transition-all duration-700 delay-300 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
                 {pillars.map((pillar, index) => (
                     <div 
                         key={index} 

@@ -183,6 +183,19 @@ export const PublicLinkBio: React.FC = () => {
             queryError = slugError;
             clearTimeout(queryTimeout);
           }
+          
+          // Fetch CV URL if we have profile data
+          if (data) {
+             const { data: userProfile } = await supabase
+               .from('profiles')
+               .select('cv_url')
+               .eq('id', data.user_id)
+               .maybeSingle();
+             
+             if (userProfile && userProfile.cv_url) {
+               (data as any).cv_url = userProfile.cv_url;
+             }
+          }
         } catch (queryErr: any) {
           console.error('[PublicLinkBio] Query error caught:', queryErr);
           queryError = queryErr;
@@ -245,6 +258,7 @@ export const PublicLinkBio: React.FC = () => {
           displayName: data.display_name,
           bio: data.bio || '',
           avatar: data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.username}`,
+          cvUrl: (data as any).cv_url, // Add CV URL
           socials: (data.socials as any) || {},
           blocks: (data.blocks as any) || [],
           theme: (data.theme as any) || {

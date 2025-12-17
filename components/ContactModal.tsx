@@ -25,15 +25,17 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
-      // Small delay to ensure render happens before class change for transition
-      setTimeout(() => setIsVisible(true), 50);
+      // Use requestAnimationFrame for smoother start
+      requestAnimationFrame(() => {
+          setIsVisible(true);
+      });
       document.body.style.overflow = 'hidden';
     } else {
       setIsVisible(false);
       const timer = setTimeout(() => {
         setShouldRender(false);
         document.body.style.overflow = 'unset';
-      }, 700); // Match duration-700
+      }, 500); // Match duration-500
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -76,16 +78,16 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
   if (!shouldRender) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center px-4 transition-all duration-700 ease-out-expo ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center px-4 ${isVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}>
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-700" 
+        className={`absolute inset-0 bg-black/80 transition-all duration-500 ease-out ${isVisible ? 'opacity-100 backdrop-blur-sm' : 'opacity-0 backdrop-blur-none'}`} 
         onClick={onClose}
       ></div>
 
       {/* Modal Content - Dark Theme */}
       <div 
-        className={`relative bg-[#2C1E1A] w-full max-w-lg rounded-3xl shadow-2xl transform transition-all duration-700 ease-out-expo overflow-hidden border border-white/10 ${isVisible ? 'scale-100 translate-y-0 opacity-100' : 'scale-90 translate-y-12 opacity-0'}`}
+        className={`relative bg-[#2C1E1A] w-full max-w-lg rounded-3xl shadow-2xl transform transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) overflow-hidden border border-white/10 ${isVisible ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-8 opacity-0'}`}
       >
         
         {/* Header */}
