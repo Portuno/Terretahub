@@ -351,24 +351,8 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
             setShowInCommunity(userProfile.show_in_community !== false); // default true
             if (userProfile.cv_url) {
               setProfile(prev => {
-                const hasCvBlock = prev.blocks.some(b => b.type === 'cv');
-                if (!hasCvBlock) {
-                  return {
-                    ...prev,
-                    cvUrl: userProfile.cv_url,
-                    blocks: [
-                      ...prev.blocks,
-                      {
-                        id: 'cv-' + Date.now(),
-                        type: 'cv',
-                        title: 'Descargar CV',
-                        url: userProfile.cv_url,
-                        isVisible: true,
-                        icon: 'none'
-                      }
-                    ]
-                  };
-                }
+                // Not automatically adding CV block anymore.
+                // The user can add it manually if they want.
                 return { ...prev, cvUrl: userProfile.cv_url };
               });
             }
@@ -393,24 +377,8 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
             setShowInCommunity(userProfile.show_in_community !== false); // default true
             if (userProfile.cv_url) {
               setProfile(prev => {
-                const hasCvBlock = prev.blocks.some(b => b.type === 'cv');
-                if (!hasCvBlock) {
-                  return {
-                    ...prev,
-                    cvUrl: userProfile.cv_url,
-                    blocks: [
-                      ...prev.blocks,
-                      {
-                        id: 'cv-' + Date.now(),
-                        type: 'cv',
-                        title: 'Descargar CV',
-                        url: userProfile.cv_url,
-                        isVisible: true,
-                        icon: 'none'
-                      }
-                    ]
-                  };
-                }
+                // Not automatically adding CV block anymore.
+                // The user can add it manually if they want.
                 return { ...prev, cvUrl: userProfile.cv_url };
               });
             }
@@ -744,7 +712,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
       id: Date.now().toString(),
       type,
       isVisible: true,
-      title: type === 'link' ? 'Nuevo Enlace' : type === 'header' ? 'Nueva Sección' : type === 'video' ? 'Video Destacado' : type === 'music' ? 'Canción' : type === 'gallery' ? 'Galería' : type === 'cv' ? 'Descargar CV' : '',
+      title: type === 'link' ? 'Nuevo Enlace' : type === 'header' ? 'Nueva Sección' : type === 'video' ? 'Video Destacado' : type === 'music' ? 'Canción' : type === 'gallery' ? 'Galería' : type === 'cv' ? 'Mi Currículum' : '',
       url: '',
       content: type === 'text' ? 'Escribe algo aquí...' : '',
       icon: type === 'cv' ? 'none' : 'none', // Default icon for CV could be none or maybe we force one in render
@@ -1021,6 +989,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
                       <button onClick={() => addBlock('video')} className="p-2 bg-transparent text-gray-600 rounded hover:bg-gray-200 text-xs flex items-center gap-1"><Video size={14}/> Video</button>
                       <button onClick={() => addBlock('music')} className="p-2 bg-transparent text-gray-600 rounded hover:bg-gray-200 text-xs flex items-center gap-1"><Music size={14}/> Música</button>
                       <button onClick={() => addBlock('gallery')} className="p-2 bg-transparent text-gray-600 rounded hover:bg-gray-200 text-xs flex items-center gap-1"><Images size={14}/> Galería</button>
+                      <button onClick={() => addBlock('cv')} className="p-2 bg-transparent text-gray-600 rounded hover:bg-gray-200 text-xs flex items-center gap-1"><FileText size={14}/> Currículum</button>
                    </div>
                 </div>
 
@@ -1954,7 +1923,7 @@ export const ProfileRenderer: React.FC<{ profile: LinkBioProfile; profileUserId?
                     style={getBtnStyle()}
                   >
                     <FileText size={18} className="absolute left-4 opacity-90" />
-                    <span>{block.title || 'Descargar CV'}</span>
+                    <span>{block.title || 'Mi Currículum'}</span>
                   </a>
                );
             }
