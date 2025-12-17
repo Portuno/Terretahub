@@ -27,8 +27,8 @@ export const NotFound404: React.FC<NotFound404Props> = ({ variant = 'generic', p
           message: `Buscamos por toda la Terreta, pero el perfil @${displayProfileName} no está registrado en nuestra red. Quizás todavía están cocinando su idea.`,
           primaryAction: {
             label: 'Buscar Talentos Similares',
-            onClick: () => navigate('/app'),
-            path: '/app',
+            onClick: () => navigate('/comunidad'),
+            path: '/comunidad',
           },
           secondaryAction: {
             label: 'Ver los Pilares del Hub',
@@ -44,12 +44,12 @@ export const NotFound404: React.FC<NotFound404Props> = ({ variant = 'generic', p
             'Este proyecto ya no se encuentra en nuestra incubadora. Puede que haya escalado a otro nivel o haya sido archivado.',
           primaryAction: {
             label: 'Explorar Proyectos Destacados',
-            onClick: () => navigate('/app'),
-            path: '/app',
+            onClick: () => navigate('/proyectos'),
+            path: '/proyectos',
           },
           secondaryAction: {
             label: 'Subir mi Propio Proyecto',
-            onClick: () => navigate('/app'),
+            onClick: () => navigate('/proyectos'),
           },
         };
 
@@ -61,8 +61,8 @@ export const NotFound404: React.FC<NotFound404Props> = ({ variant = 'generic', p
             'Este proyecto ya existe, pero está esperando la validación final de nuestro equipo. Queremos asegurarnos de que todo esté perfecto antes de publicarlo.',
           primaryAction: {
             label: 'Volver a la Galería de Proyectos',
-            onClick: () => navigate('/app'),
-            path: '/app',
+            onClick: () => navigate('/proyectos'),
+            path: '/proyectos',
           },
           secondaryAction: {
             label: 'Conoce el Proceso de Aprobación',
@@ -83,8 +83,8 @@ export const NotFound404: React.FC<NotFound404Props> = ({ variant = 'generic', p
             'Parece que nos hemos desviado un poco del camino. Esta URL no está en nuestros mapas.',
           primaryAction: {
             label: 'Ir al Ágora Comunitario',
-            onClick: () => navigate('/app'),
-            path: '/app',
+            onClick: () => navigate('/agora'),
+            path: '/agora',
           },
           secondaryAction: {
             label: 'Volver al Inicio',

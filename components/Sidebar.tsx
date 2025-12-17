@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { Users, FolderKanban, BookOpen, CalendarDays, LogIn, Layout, MessageSquareText, MessageCircle, Shield, Menu, X } from 'lucide-react';
 import { AuthUser } from '../types';
 import { isAdmin } from '../lib/userRoles';
 
 interface SidebarProps {
-  activeSection: string;
-  onNavigate: (section: string) => void;
   user: AuthUser | null;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -13,37 +12,31 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
-  activeSection, 
-  onNavigate, 
   user, 
   onOpenAuth,
   onLogout,
   onOpenFeedback
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  
+  // Close mobile menu when location changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
-  }, [activeSection]);
-  React.useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [activeSection]);
+  }, [location.pathname]);
+
   const menuItems = [
-    { id: 'agora', label: 'Ágora', icon: <MessageSquareText size={20} /> },
-    { id: 'comunidad', label: 'Comunidad', icon: <Users size={20} /> },
-    { id: 'proyectos', label: 'Proyectos', icon: <FolderKanban size={20} /> },
-    { id: 'recursos', label: 'Recursos', icon: <BookOpen size={20} /> },
-    { id: 'eventos', label: 'Eventos', icon: <CalendarDays size={20} /> },
+    { id: 'agora', path: '/agora', label: 'Ágora', icon: <MessageSquareText size={20} /> },
+    { id: 'comunidad', path: '/comunidad', label: 'Comunidad', icon: <Users size={20} /> },
+    { id: 'proyectos', path: '/proyectos', label: 'Proyectos', icon: <FolderKanban size={20} /> },
+    { id: 'recursos', path: '/recursos', label: 'Recursos', icon: <BookOpen size={20} /> },
+    { id: 'eventos', path: '/eventos', label: 'Eventos', icon: <CalendarDays size={20} /> },
   ];
 
   // Agregar sección Admin si el usuario es admin
   if (user && isAdmin(user)) {
-    menuItems.push({ id: 'admin', label: 'Admin', icon: <Shield size={20} /> });
+    menuItems.push({ id: 'admin', path: '/admin', label: 'Admin', icon: <Shield size={20} /> });
   }
-
-  const handleNavigate = (section: string) => {
-    onNavigate(section);
-    setIsMobileMenuOpen(false);
-  };
 
   return (
     <>
@@ -72,13 +65,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         transition-transform duration-300 ease-in-out
       `}>
       {/* Logo Area */}
-      <div 
+      <Link 
+        to="/"
         className="px-6 py-4 flex items-center gap-3 cursor-pointer group relative h-14 md:h-16"
-        onClick={() => handleNavigate('agora')}
       >
         {/* Close button for mobile */}
         <button
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={(e) => {
+            e.preventDefault();
+            setIsMobileMenuOpen(false);
+          }}
           className="md:hidden absolute top-4 right-4 p-2 rounded-lg hover:bg-white/40"
           aria-label="Close menu"
         >
@@ -90,7 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <h1 className="font-serif text-2xl text-terreta-dark font-bold tracking-tight group-hover:text-[#D97706] transition-colors">
           Terreta Hub
         </h1>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
@@ -98,10 +94,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* User's "Mi Página" Link - Only if logged in */}
         {user && (
           <div className="mb-6">
-             <button
-              onClick={() => onNavigate('perfil')}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group border border-[#D97706]/20 ${
-                activeSection === 'perfil'
+             <NavLink
+              to="/perfil"
+              className={({ isActive }) => `w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group border border-[#D97706]/20 ${
+                isActive
                   ? 'bg-white shadow-md' 
                   : 'bg-white/40 hover:bg-white'
               }`}
@@ -112,32 +108,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="font-sans font-bold text-sm tracking-wide text-terreta-dark">
                 Mi Página
               </span>
-            </button>
+            </NavLink>
             <div className="h-px bg-terreta-dark/5 mx-2 mt-4"></div>
           </div>
         )}
 
-        {menuItems.map((item) => {
-          const isActive = activeSection === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                isActive 
-                  ? 'bg-terreta-dark text-white shadow-lg' 
-                  : 'text-terreta-dark/70 hover:bg-white/40 hover:text-terreta-dark'
-              }`}
-            >
-              <span className={isActive ? 'text-[#D97706]' : 'text-current opacity-70 group-hover:opacity-100'}>
-                {item.icon}
-              </span>
-              <span className={`font-sans font-medium text-sm tracking-wide ${isActive ? 'font-bold' : ''}`}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
+        {menuItems.map((item) => (
+          <NavLink
+            key={item.id}
+            to={item.path}
+            className={({ isActive }) => `w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group ${
+              isActive 
+                ? 'bg-terreta-dark text-white shadow-lg' 
+                : 'text-terreta-dark/70 hover:bg-white/40 hover:text-terreta-dark'
+            }`}
+          >
+            {({ isActive }) => (
+              <>
+                <span className={isActive ? 'text-[#D97706]' : 'text-current opacity-70 group-hover:opacity-100'}>
+                  {item.icon}
+                </span>
+                <span className={`font-sans font-medium text-sm tracking-wide ${isActive ? 'font-bold' : ''}`}>
+                  {item.label}
+                </span>
+              </>
+            )}
+          </NavLink>
+        ))}
       </nav>
 
       {/* Footer / User Auth */}

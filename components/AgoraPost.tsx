@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MessageCircle, Share2, MoreHorizontal, Send, Trash2, Shield } from 'lucide-react';
 import { AgoraPost as AgoraPostType, AuthUser } from '../types';
 import { canDelete } from '../lib/userRoles';
+import { useProfileNavigation } from '../hooks/useProfileNavigation';
 
 interface AgoraPostProps {
   post: AgoraPostType;
@@ -9,15 +10,16 @@ interface AgoraPostProps {
   onReply: (postId: string, content: string) => void;
   onDelete?: (postId: string) => void;
   onOpenAuth: () => void;
-  onViewProfile?: (handle: string) => void;
 }
 
-export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply, onDelete, onOpenAuth, onViewProfile }) => {
+export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply, onDelete, onOpenAuth }) => {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [pasteCount, setPasteCount] = useState(0);
   const [showPasteWarning, setShowPasteWarning] = useState(false);
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+  
+  const navigateToProfile = useProfileNavigation();
 
   const canDeletePost = canDelete(currentUser, post.authorId);
 
@@ -52,9 +54,7 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
   };
 
   const handleProfileClick = () => {
-      if (onViewProfile) {
-          onViewProfile(post.author.handle);
-      }
+    navigateToProfile(post.author.handle);
   };
 
   // Cerrar menú de eliminación al hacer click fuera
@@ -178,13 +178,13 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
                 src={comment.author.avatar} 
                 alt={comment.author.name} 
                 className="w-8 h-8 rounded-full bg-white object-cover cursor-pointer"
-                onClick={() => onViewProfile && onViewProfile(comment.author.handle)}
+                onClick={() => navigateToProfile(comment.author.handle)}
               />
               <div className="flex-1">
                  <div className="flex justify-between items-baseline">
                     <span 
                         className="font-bold text-xs text-terreta-dark cursor-pointer hover:underline"
-                        onClick={() => onViewProfile && onViewProfile(comment.author.handle)}
+                        onClick={() => navigateToProfile(comment.author.handle)}
                     >
                         {comment.author.name}
                     </span>

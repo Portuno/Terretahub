@@ -3,7 +3,7 @@
 
 User-agent: *
 Allow: /
-Allow: /app
+Allow: /
 Allow: /p/
 Allow: /proyecto/
 

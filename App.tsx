@@ -9,6 +9,14 @@ import { PublicProject } from './components/PublicProject';
 import { NotFound404 } from './components/NotFound404';
 import { AuthUser } from './types';
 import { supabase } from './lib/supabase';
+import { AgoraFeed } from './components/AgoraFeed';
+import { CommunityPage } from './components/CommunityPage';
+import { ProjectsPage } from './components/ProjectsPage';
+import { ResourceCollabPanel } from './components/ResourceCollabPanel';
+import { AdminProjectsPanel } from './components/AdminProjectsPanel';
+import { ProfileEditor } from './components/ProfileEditor';
+import { PlaceholderPage } from './components/PlaceholderPage';
+import { isAdmin } from './lib/userRoles';
 
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -257,7 +265,7 @@ const AppContent: React.FC = () => {
     setUser(loggedInUser);
     userRef.current = loggedInUser; // Actualizar ref
     setIsAuthModalOpen(false);
-    navigate('/app');
+    navigate('/'); // Ir a home después de login
   };
 
   const handleLogout = async () => {
@@ -265,11 +273,6 @@ const AppContent: React.FC = () => {
     setUser(null);
     userRef.current = null; // Actualizar ref
     navigate('/');
-  };
-
-  const handleEnterApp = () => {
-    // Permitir acceso a /app sin necesidad de estar logueado
-    navigate('/app');
   };
 
   // Mostrar loading mientras se verifica la sesión
@@ -287,20 +290,21 @@ const AppContent: React.FC = () => {
   return (
     <>
       <Routes>
-        <Route 
-          path="/" 
-          element={<LandingPage onEnterApp={handleEnterApp} />} 
-        />
-        <Route 
-          path="/app" 
-          element={
-            <Dashboard 
-              user={user} 
-              onOpenAuth={() => setIsAuthModalOpen(true)} 
-              onLogout={handleLogout}
-            />
-          } 
-        />
+        <Route path="/" element={<Dashboard user={user} onOpenAuth={() => setIsAuthModalOpen(true)} onLogout={handleLogout} />}>
+          <Route index element={<LandingPage />} />
+          <Route path="agora" element={<AgoraFeed user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />} />
+          <Route path="comunidad" element={<CommunityPage />} />
+          <Route path="proyectos" element={<ProjectsPage user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />} />
+          <Route path="recursos" element={<ResourceCollabPanel user={user} />} />
+          <Route path="eventos" element={<PlaceholderPage title="Eventos" />} />
+          <Route path="perfil" element={
+            user ? <ProfileEditor user={user} /> : <Navigate to="/" replace />
+          } />
+          <Route path="admin" element={
+            user && isAdmin(user) ? <AdminProjectsPanel user={user} /> : <Navigate to="/" replace />
+          } />
+        </Route>
+
         <Route 
           path="/p/:extension" 
           element={<PublicLinkBio />} 

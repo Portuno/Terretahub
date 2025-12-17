@@ -21,10 +21,9 @@ const formatTimestamp = (dateString: string): string => {
 interface AgoraFeedProps {
   user: AuthUser | null;
   onOpenAuth: () => void;
-  onViewProfile?: (handle: string) => void;
 }
 
-export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth, onViewProfile }) => {
+export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
   const [posts, setPosts] = useState<AgoraPost[]>([]);
   const [newPostContent, setNewPostContent] = useState('');
   const [loading, setLoading] = useState(true);
@@ -465,7 +464,6 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth, onViewPr
               onReply={handleReply}
               onDelete={handleDeletePost}
               onOpenAuth={onOpenAuth}
-              onViewProfile={onViewProfile}
             />
           ))}
         </div>

@@ -189,7 +189,7 @@ export const PublicProject: React.FC = () => {
       {/* Logo Button - Arriba a la izquierda */}
       <div className="fixed top-6 left-6 z-20">
         <button
-          onClick={() => navigate('/app')}
+          onClick={() => navigate('/')}
           className="flex items-center gap-2.5 bg-white/90 backdrop-blur-sm px-4 py-2.5 rounded-lg hover:bg-white transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 group"
         >
           <div className="w-7 h-7 rounded-full bg-[#D97706] flex items-center justify-center text-white font-serif font-bold text-base group-hover:scale-105 transition-transform">
@@ -394,7 +394,7 @@ export const PublicProject: React.FC = () => {
       {/* Botón Volver - Abajo a la izquierda */}
       <div className="fixed bottom-6 left-6 z-20">
         <button
-          onClick={() => navigate('/app')}
+          onClick={() => navigate('/')}
           className="flex items-center gap-2 px-4 py-2.5 bg-[#A65D46] text-white rounded-lg hover:bg-[#8B4A3A] transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 font-bold text-sm"
         >
           <ArrowLeft size={18} />

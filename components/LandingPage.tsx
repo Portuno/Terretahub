@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ContactModal } from './ContactModal';
 import { PillarsModal } from './PillarsModal';
 
-interface LandingPageProps {
-  onEnterApp: () => void;
-}
-
-export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
+export const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isPillarsOpen, setIsPillarsOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-terreta-bg overflow-hidden relative animate-fade-in">
+    <div className="flex flex-col font-sans overflow-hidden relative animate-fade-in w-full h-full">
       
       {/* --- HERO SECTION --- */}
-      <section className="flex-grow flex flex-col items-center justify-center px-6 md:px-12 max-w-7xl mx-auto w-full h-screen">
+      <section className="flex-grow flex flex-col items-center justify-center px-6 md:px-12 max-w-7xl mx-auto w-full py-20 min-h-[calc(100vh-100px)]">
         
         {/* Title */}
         <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-terreta-dark font-bold mb-4 tracking-tight text-center relative z-10">
@@ -49,7 +47,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
         <div className="flex flex-col md:flex-row gap-5 items-center justify-center w-full z-10">
           {/* Explora - Orange Button */}
           <button 
-            onClick={onEnterApp}
+            onClick={() => navigate('/agora')}
             className="bg-[#D97706] hover:bg-[#B45309] text-white px-8 py-4 rounded-full font-bold tracking-widest text-xs md:text-sm transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 w-full md:w-auto min-w-[220px] uppercase"
           >
             Explora la Comunidad
