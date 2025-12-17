@@ -3,7 +3,7 @@ import { NavLink, Link, useLocation } from 'react-router-dom';
 import { Users, FolderKanban, BookOpen, CalendarDays, LogIn, Layout, MessageSquareText, MessageCircle, Shield, Menu, X, Mountain, Wind, Flame, Droplets } from 'lucide-react';
 import { AuthUser } from '../types';
 import { isAdmin } from '../lib/userRoles';
-import { useTheme, Theme } from '../context/ThemeContext';
+import { useTheme, THEMES, Theme } from '../context/ThemeContext';
 
 interface SidebarProps {
   user: AuthUser | null;
@@ -11,6 +11,98 @@ interface SidebarProps {
   onLogout: () => void;
   onOpenFeedback?: () => void;
 }
+
+const ThemeOracle = () => {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <div className="flex flex-col items-center justify-center my-6">
+      <div className="relative w-32 h-32 flex items-center justify-center">
+        {/* Cross Structure */}
+        <div className="absolute w-[1px] h-20 bg-terreta-dark/20"></div>
+        <div className="absolute h-[1px] w-20 bg-terreta-dark/20"></div>
+
+        {/* Center Jewel/Node (Optional decoration) */}
+        <div className="absolute w-1.5 h-1.5 rounded-full bg-terreta-dark/30"></div>
+
+        {/* Tips / Interaction Zones */}
+        
+        {/* Aire (Up) */}
+        <button
+          onClick={() => setTheme('aire')}
+          className="group absolute top-2 left-1/2 -translate-x-1/2 w-8 h-8 flex items-center justify-center focus:outline-none"
+          aria-label="Tema Aire"
+        >
+          {/* Interaction Hit Area */}
+          <div className="absolute inset-0 z-10 cursor-pointer"></div>
+          
+          {/* Visuals */}
+          <div className={`
+            w-1.5 h-1.5 rounded-full transition-all duration-500 ease-out
+            ${theme === 'aire' ? 'bg-[#F8FAFC] shadow-[0_0_10px_2px_rgba(248,250,252,0.6)] scale-150' : 'bg-terreta-dark/40 group-hover:bg-[#F8FAFC] group-hover:shadow-[0_0_8px_1px_rgba(248,250,252,0.5)]'}
+          `}></div>
+          
+          {/* Label */}
+          <span className={`
+            absolute -top-5 text-[9px] font-serif uppercase tracking-widest transition-all duration-300 pointer-events-none whitespace-nowrap
+            ${theme === 'aire' ? 'opacity-100 text-terreta-dark translate-y-0' : 'opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 text-terreta-dark/70'}
+          `}>Aire</span>
+        </button>
+
+        {/* Tierra (Down) */}
+        <button
+          onClick={() => setTheme('tierra')}
+          className="group absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-8 flex items-center justify-center focus:outline-none"
+          aria-label="Tema Tierra"
+        >
+          <div className="absolute inset-0 z-10 cursor-pointer"></div>
+          <div className={`
+            w-1.5 h-1.5 rounded-full transition-all duration-500 ease-out
+            ${theme === 'tierra' ? 'bg-[#D97706] shadow-[0_0_10px_2px_rgba(217,119,6,0.6)] scale-150' : 'bg-terreta-dark/40 group-hover:bg-[#D97706] group-hover:shadow-[0_0_8px_1px_rgba(217,119,6,0.5)]'}
+          `}></div>
+          <span className={`
+            absolute -bottom-5 text-[9px] font-serif uppercase tracking-widest transition-all duration-300 pointer-events-none whitespace-nowrap
+            ${theme === 'tierra' ? 'opacity-100 text-terreta-dark translate-y-0' : 'opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 text-terreta-dark/70'}
+          `}>Tierra</span>
+        </button>
+
+        {/* Agua (Left) */}
+        <button
+          onClick={() => setTheme('agua')}
+          className="group absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center focus:outline-none"
+          aria-label="Tema Agua"
+        >
+          <div className="absolute inset-0 z-10 cursor-pointer"></div>
+          <div className={`
+            w-1.5 h-1.5 rounded-full transition-all duration-500 ease-out
+            ${theme === 'agua' ? 'bg-[#3B82F6] shadow-[0_0_10px_2px_rgba(59,130,246,0.6)] scale-150' : 'bg-terreta-dark/40 group-hover:bg-[#3B82F6] group-hover:shadow-[0_0_8px_1px_rgba(59,130,246,0.5)]'}
+          `}></div>
+          <span className={`
+            absolute -left-8 text-[9px] font-serif uppercase tracking-widest transition-all duration-300 pointer-events-none whitespace-nowrap
+            ${theme === 'agua' ? 'opacity-100 text-terreta-dark translate-x-0' : 'opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 text-terreta-dark/70'}
+          `}>Agua</span>
+        </button>
+
+        {/* Fuego (Right) */}
+        <button
+          onClick={() => setTheme('fuego')}
+          className="group absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center focus:outline-none"
+          aria-label="Tema Fuego"
+        >
+          <div className="absolute inset-0 z-10 cursor-pointer"></div>
+          <div className={`
+            w-1.5 h-1.5 rounded-full transition-all duration-500 ease-out
+            ${theme === 'fuego' ? 'bg-[#EF4444] shadow-[0_0_10px_2px_rgba(239,68,68,0.6)] scale-150' : 'bg-terreta-dark/40 group-hover:bg-[#EF4444] group-hover:shadow-[0_0_8px_1px_rgba(239,68,68,0.5)]'}
+          `}></div>
+          <span className={`
+            absolute -right-9 text-[9px] font-serif uppercase tracking-widest transition-all duration-300 pointer-events-none whitespace-nowrap
+            ${theme === 'fuego' ? 'opacity-100 text-terreta-dark translate-x-0' : 'opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 text-terreta-dark/70'}
+          `}>Fuego</span>
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
   user, 
@@ -39,13 +131,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   if (user && isAdmin(user)) {
     menuItems.push({ id: 'admin', path: '/admin', label: 'Admin', icon: <Shield size={20} /> });
   }
-
-  const themes: { id: Theme; color: string; icon: React.ReactNode; label: string }[] = [
-    { id: 'tierra', color: 'bg-[#D97706]', icon: <Mountain size={14} />, label: 'Tierra' },
-    { id: 'aire', color: 'bg-[#0EA5E9]', icon: <Wind size={14} />, label: 'Aire' },
-    { id: 'fuego', color: 'bg-[#F97316]', icon: <Flame size={14} />, label: 'Fuego' },
-    { id: 'agua', color: 'bg-[#22D3EE]', icon: <Droplets size={14} />, label: 'Agua' },
-  ];
 
   return (
     <>
@@ -149,24 +234,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer / User Auth */}
       <div className="p-4 bg-terreta-bg/50 border-t border-terreta-border">
          
-         {/* Theme Selector */}
-         <div className="flex items-center justify-center gap-3 mb-6 p-2 bg-terreta-card/30 rounded-full border border-terreta-border/50">
-            {themes.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTheme(t.id)}
-                className={`
-                  w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300
-                  ${theme === t.id ? 'scale-110 shadow-md ring-2 ring-terreta-dark ring-offset-1' : 'opacity-60 hover:opacity-100 hover:scale-105'}
-                  ${t.color} text-white
-                `}
-                title={`Tema ${t.label}`}
-                aria-label={`Cambiar a tema ${t.label}`}
-              >
-                {t.icon}
-              </button>
-            ))}
-         </div>
+         {/* Theme Oracle */}
+         <ThemeOracle />
 
          {/* Feedback Section */}
          <button

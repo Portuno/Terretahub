@@ -120,47 +120,47 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
   const badgeIdle = 'border-amber-200 text-slate-700 hover:border-emerald-500 bg-white/70';
 
   return (
-    <section className="w-full h-full flex flex-col gap-2 rounded-2xl bg-gradient-to-br from-amber-50 via-emerald-50/60 to-orange-50 p-3 shadow-lg border border-amber-100 flex-grow min-h-[calc(100vh-4rem)]">
+    <section className="w-full h-full flex flex-col gap-2 rounded-2xl bg-terreta-card border border-terreta-border p-3 shadow-lg flex-grow min-h-[calc(100vh-4rem)]">
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-1 shrink-0">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-terreta-accent mb-1">
             Recursos (En construcción)
           </p>
-          <h2 className="text-3xl font-serif font-bold text-slate-900 leading-tight">
+          <h2 className="text-3xl font-serif font-bold text-terreta-dark leading-tight">
             Panel de Colaboración
           </h2>
         </div>
-        <p className="text-sm text-slate-700 max-w-xl text-right md:text-right hidden md:block pb-2">
+        <p className="text-sm text-terreta-secondary max-w-xl text-right md:text-right hidden md:block pb-2">
           Siembra tu necesidad aquí para priorizar el contenido.
         </p>
       </header>
 
-      <div className="flex-1 flex flex-col gap-3 rounded-xl bg-white/90 p-3 shadow-inner border border-white/70 overflow-y-auto">
+      <div className="flex-1 flex flex-col gap-3 rounded-xl bg-terreta-bg/30 p-3 shadow-inner border border-terreta-border overflow-y-auto">
         
         {/* Encapsulated Options: Verticals */}
-        <div className="bg-white/50 rounded-xl p-4 shadow-sm border border-slate-100 shrink-0">
+        <div className="bg-terreta-card/80 rounded-xl p-4 shadow-sm border border-terreta-border/50 shrink-0">
             <div className="flex flex-col gap-3 relative">
               <div className="flex items-center gap-2">
                   <p className="text-sm font-bold text-terreta-dark uppercase tracking-wide">1. Vertical de Interés</p>
                   <div className="group relative">
                       <HelpCircle size={14} className="text-terreta-gold cursor-help" />
-                      <div className="absolute left-full top-0 ml-2 w-48 bg-slate-800 text-white text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                      <div className="absolute left-full top-0 ml-2 w-48 bg-terreta-sidebar text-terreta-dark text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity border border-terreta-border">
                           Elige el sector al que pertenece tu consulta.
                       </div>
                   </div>
               </div>
-              <div className="w-8 h-0.5 bg-[#E6DEC9] rounded-full"></div>
+              <div className="w-8 h-0.5 bg-terreta-border rounded-full"></div>
               <div className="flex flex-wrap gap-2">
                 {VERTICALS.map((vertical) => {
                   const isActive = selectedVerticals.includes(vertical);
                   // Determine color based on vertical name
-                  let activeClass = 'border-slate-600 bg-slate-50 text-slate-700';
+                  let activeClass = 'border-terreta-secondary/50 bg-terreta-bg text-terreta-dark';
                   if (vertical === 'Tecnología' || vertical === 'Salud') {
-                      activeClass = 'border-emerald-600 bg-emerald-50 text-emerald-700';
+                      activeClass = 'border-emerald-500 bg-emerald-50/10 text-emerald-600 dark:text-emerald-400';
                   } else if (vertical === 'Arte & Educación' || vertical === 'Comunidad') {
-                      activeClass = 'border-[#8D6E63] bg-[#FDF8F6] text-[#8D6E63]'; // Arcilla/Clay
+                      activeClass = 'border-[#8D6E63] bg-[#FDF8F6]/10 text-[#8D6E63]'; 
                   } else {
-                      activeClass = 'border-amber-500 bg-amber-50 text-amber-700';
+                      activeClass = 'border-amber-500 bg-amber-50/10 text-amber-600 dark:text-amber-400';
                   }
 
                   return (
@@ -169,10 +169,10 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                       type="button"
                       onClick={() => toggleItem(vertical, selectedVerticals, setSelectedVerticals)}
                       className={`
-                        inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition focus:outline-none focus:ring-1 focus:ring-emerald-500
+                        inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition focus:outline-none focus:ring-1 focus:ring-terreta-accent
                         ${isActive 
                             ? `${activeClass} shadow-sm font-semibold` 
-                            : 'border-slate-200 text-slate-600 hover:border-slate-400 bg-white'
+                            : 'border-terreta-border text-terreta-secondary hover:border-terreta-accent/50 bg-terreta-card'
                         }
                       `}
                     >
@@ -190,22 +190,22 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide">2. Formatos preferidos</label>
                <div className="group relative">
                   <HelpCircle size={14} className="text-terreta-gold cursor-help" />
-                   <div className="absolute left-0 bottom-6 w-48 bg-slate-800 text-white text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                   <div className="absolute left-0 bottom-6 w-48 bg-terreta-sidebar text-terreta-dark text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity border border-terreta-border">
                       ¿Cómo prefieres consumir este contenido? (PDF, Video, Taller...)
                    </div>
                </div>
           </div>
           
-          <div className="flex flex-wrap gap-2 items-center pb-2 border-b border-terreta-accent/30 focus-within:border-terreta-accent transition-colors">
+          <div className="flex flex-wrap gap-2 items-center pb-2 border-b border-terreta-border focus-within:border-terreta-accent transition-colors">
             {formatTags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 rounded-full bg-[#EBE5DA] px-3 py-1 text-sm text-terreta-dark border border-[#D1C9BC]"
+                className="inline-flex items-center gap-1 rounded-full bg-terreta-bg px-3 py-1 text-sm text-terreta-dark border border-terreta-border"
               >
                 {tag}
                 <button
                   type="button"
-                  className="text-terreta-dark/60 hover:text-terreta-dark focus:outline-none font-bold ml-1"
+                  className="text-terreta-secondary hover:text-terreta-dark focus:outline-none font-bold ml-1"
                   onClick={() => handleRemoveTag(tag)}
                 >
                   ×
@@ -217,7 +217,7 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                 onChange={(event) => setTagInput(event.target.value)}
                 onKeyDown={handleTagKeyDown}
                 placeholder="Ej: videos cortos, PDF... (Enter)"
-                className="flex-1 min-w-[200px] bg-transparent text-base text-slate-700 placeholder-slate-400 outline-none py-1"
+                className="flex-1 min-w-[200px] bg-transparent text-base text-terreta-dark placeholder-terreta-secondary/50 outline-none py-1"
               />
           </div>
         </div>
@@ -229,7 +229,7 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                 <p className="text-sm font-bold text-terreta-dark uppercase tracking-wide">3. Detalles</p>
                  <div className="group relative">
                   <HelpCircle size={14} className="text-terreta-gold cursor-help" />
-                   <div className="absolute left-0 bottom-6 w-64 bg-slate-800 text-white text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                   <div className="absolute left-0 bottom-6 w-64 bg-terreta-sidebar text-terreta-dark text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity border border-terreta-border">
                       Cuéntanos más sobre lo que necesitas. Sé específico para que podamos ayudarte mejor.
                    </div>
                </div>
@@ -238,9 +238,9 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
             <button
               type="button"
               onClick={rotatePlaceholder}
-              className="group flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-50 hover:bg-amber-100 text-xs text-amber-700 transition-colors border border-amber-200/50"
+              className="group flex items-center gap-1.5 px-3 py-1.5 rounded bg-terreta-bg/50 hover:bg-terreta-bg text-xs text-terreta-accent transition-colors border border-terreta-border"
             >
-               <Lightbulb size={12} className="text-amber-500 group-hover:text-amber-600" />
+               <Lightbulb size={12} className="text-terreta-gold group-hover:text-terreta-accent" />
                <span className="font-semibold">Inspiración</span>
             </button>
           </div>
@@ -248,14 +248,14 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
             value={details}
             onChange={(event) => setDetails(event.target.value)}
             placeholder={placeholder}
-            className="flex-1 w-full rounded-xl border-b-2 border-slate-100 bg-slate-50/50 px-4 py-3 text-base text-slate-800 placeholder-slate-400 focus:border-terreta-accent focus:bg-white transition-all resize-none outline-none leading-relaxed"
+            className="flex-1 w-full rounded-xl border-b-2 border-terreta-border bg-terreta-card/50 px-4 py-3 text-base text-terreta-dark placeholder-terreta-secondary/40 focus:border-terreta-accent focus:bg-terreta-card transition-all resize-none outline-none leading-relaxed"
           />
         </div>
 
-        <div className="flex items-center justify-end pt-2 border-t border-slate-100 shrink-0">
+        <div className="flex items-center justify-end pt-2 border-t border-terreta-border shrink-0">
              <div className="flex items-center gap-3 ml-auto">
                 {submitState === 'success' && (
-                <span className="text-xs text-emerald-700 font-bold animate-pulse">¡Recibido!</span>
+                <span className="text-xs text-emerald-600 font-bold animate-pulse">¡Recibido!</span>
                 )}
                 {submitState === 'error' && (
                 <span className="text-xs text-red-600 font-bold">Error al enviar.</span>
@@ -264,7 +264,7 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                 type="button"
                 disabled={isSubmitDisabled || submitState === 'loading'}
                 onClick={handleSubmit}
-                className="rounded-lg bg-emerald-600 px-6 py-2 text-xs font-bold text-white shadow-md transition hover:bg-emerald-700 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider transform active:scale-95"
+                className="rounded-lg bg-terreta-accent px-6 py-2 text-xs font-bold text-white shadow-md transition hover:brightness-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider transform active:scale-95"
                 >
                 {submitState === 'loading' ? '...' : 'Enviar'}
                 </button>

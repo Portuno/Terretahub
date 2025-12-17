@@ -77,7 +77,7 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
   }, [showDeleteMenu]);
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow mb-4">
+    <div className="bg-terreta-card border border-terreta-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow mb-4">
       
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
@@ -85,7 +85,7 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
           <img 
             src={post.author.avatar} 
             alt={post.author.name} 
-            className="w-12 h-12 rounded-full bg-gray-100 object-cover border border-gray-200 cursor-pointer"
+            className="w-12 h-12 rounded-full bg-terreta-bg object-cover border border-terreta-border cursor-pointer"
             onClick={handleProfileClick}
           />
           <div>
@@ -97,15 +97,15 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
                 {post.author.name}
               </h3>
               {post.author.role === 'Admin' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#D97706] text-white text-[10px] font-bold uppercase tracking-wide rounded-full">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-terreta-accent text-white text-[10px] font-bold uppercase tracking-wide rounded-full">
                   <Shield size={10} />
                   Admin
                 </span>
               )}
-              <span className="text-xs text-gray-400 font-sans">{post.timestamp}</span>
+              <span className="text-xs text-terreta-secondary font-sans">{post.timestamp}</span>
             </div>
             <p 
-                className="text-xs text-[#D97706] font-bold uppercase tracking-wide cursor-pointer hover:text-[#B45309]"
+                className="text-xs text-terreta-accent font-bold uppercase tracking-wide cursor-pointer hover:text-terreta-accent/80"
                 onClick={handleProfileClick}
             >
               {post.author.handle}
@@ -119,14 +119,14 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
                 e.stopPropagation();
                 setShowDeleteMenu(!showDeleteMenu);
               }}
-              className="text-gray-300 hover:text-gray-500 relative"
+              className="text-terreta-secondary hover:text-terreta-dark relative"
             >
               <MoreHorizontal size={20} />
             </button>
           )}
           {showDeleteMenu && canDeletePost && onDelete && (
             <div 
-              className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]"
+              className="absolute right-0 top-8 bg-terreta-card border border-terreta-border rounded-lg shadow-lg z-10 min-w-[120px]"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -135,7 +135,7 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
                   onDelete(post.id);
                   setShowDeleteMenu(false);
                 }}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50/10 rounded-lg transition-colors"
               >
                 <Trash2 size={16} />
                 <span>Eliminar</span>
@@ -153,16 +153,16 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-6 pl-[60px] border-t border-gray-50 pt-3">
+      <div className="flex items-center gap-6 pl-[60px] border-t border-terreta-border pt-3">
         <button 
           onClick={() => setIsCommentsOpen(!isCommentsOpen)}
-          className="flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-[#D97706] transition-colors"
+          className="flex items-center gap-2 text-sm font-medium text-terreta-secondary hover:text-terreta-accent transition-colors"
         >
           <MessageCircle size={18} />
           <span>{post.comments.length}</span>
         </button>
 
-        <button className="flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-[#D97706] transition-colors ml-auto">
+        <button className="flex items-center gap-2 text-sm font-medium text-terreta-secondary hover:text-terreta-accent transition-colors ml-auto">
           <Share2 size={18} />
         </button>
       </div>
@@ -173,11 +173,11 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
           
           {/* List of Comments */}
           {post.comments.map(comment => (
-            <div key={comment.id} className="bg-gray-50 rounded-lg p-3 flex gap-3">
+            <div key={comment.id} className="bg-terreta-bg/50 rounded-lg p-3 flex gap-3 border border-terreta-border/50">
               <img 
                 src={comment.author.avatar} 
                 alt={comment.author.name} 
-                className="w-8 h-8 rounded-full bg-white object-cover cursor-pointer"
+                className="w-8 h-8 rounded-full bg-terreta-card object-cover cursor-pointer"
                 onClick={() => navigateToProfile(comment.author.handle)}
               />
               <div className="flex-1">
@@ -188,9 +188,9 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
                     >
                         {comment.author.name}
                     </span>
-                    <span className="text-[10px] text-gray-400">{comment.timestamp}</span>
+                    <span className="text-[10px] text-terreta-secondary">{comment.timestamp}</span>
                  </div>
-                 <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
+                 <p className="text-sm text-terreta-dark/90 mt-1">{comment.content}</p>
               </div>
             </div>
           ))}
@@ -211,7 +211,7 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
                     <input 
                       type="text" 
                       placeholder="Escribe una respuesta..." 
-                      className="w-full bg-gray-50 border-0 rounded-full px-4 py-2 text-sm focus:ring-1 focus:ring-[#D97706] outline-none"
+                      className="w-full bg-terreta-bg/50 border-terreta-border border rounded-full px-4 py-2 text-sm focus:ring-1 focus:ring-terreta-accent outline-none text-terreta-dark placeholder-terreta-secondary/50"
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       onPaste={handlePaste}
@@ -220,7 +220,7 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
                   <button 
                     type="submit" 
                     disabled={!replyText.trim()}
-                    className="p-2 text-[#D97706] hover:bg-orange-50 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-terreta-accent hover:bg-terreta-accent/10 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send size={18} />
                   </button>
@@ -228,7 +228,7 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
              ) : (
                 <div 
                   onClick={onOpenAuth}
-                  className="w-full bg-gray-50 p-3 rounded-lg text-center text-sm text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="w-full bg-terreta-bg/50 p-3 rounded-lg text-center text-sm text-terreta-secondary cursor-pointer hover:bg-terreta-bg transition-colors border border-terreta-border/50"
                 >
                    Inicia sesión para responder
                 </div>

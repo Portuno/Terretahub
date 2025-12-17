@@ -151,28 +151,28 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-full bg-[#D97706] flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-terreta-accent flex items-center justify-center">
             <FolderKanban className="text-white" size={24} />
           </div>
           <div>
             <h2 className="font-serif text-3xl text-terreta-dark">Panel de Administración</h2>
-            <p className="text-sm text-gray-500">Gestiona proyectos pendientes de revisión</p>
+            <p className="text-sm text-terreta-secondary">Gestiona proyectos pendientes de revisión</p>
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+        <div className="mt-4 flex items-center gap-2 text-sm text-terreta-secondary">
           <Clock size={16} />
-          <span className="font-bold text-[#D97706]">{projects.length}</span>
+          <span className="font-bold text-terreta-accent">{projects.length}</span>
           <span>proyecto{projects.length !== 1 ? 's' : ''} pendiente{projects.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
 
       {projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-20 h-20 bg-[#F5F0E6] rounded-full flex items-center justify-center mb-6">
-            <Check className="text-[#D97706]" size={40} />
+          <div className="w-20 h-20 bg-terreta-bg rounded-full flex items-center justify-center mb-6">
+            <Check className="text-terreta-accent" size={40} />
           </div>
           <h3 className="font-serif text-2xl text-terreta-dark mb-2">No hay proyectos pendientes</h3>
-          <p className="max-w-md text-gray-500">Todos los proyectos han sido revisados.</p>
+          <p className="max-w-md text-terreta-secondary">Todos los proyectos han sido revisados.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -182,17 +182,17 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
               <div
                 key={project.id}
                 onClick={() => setSelectedProject(project)}
-                className={`bg-white border-2 rounded-xl p-6 cursor-pointer transition-all ${
+                className={`bg-terreta-card border-2 rounded-xl p-6 cursor-pointer transition-all ${
                   selectedProject?.id === project.id
-                    ? 'border-[#D97706] shadow-lg'
-                    : 'border-gray-100 hover:border-gray-200 hover:shadow-md'
+                    ? 'border-terreta-accent shadow-lg'
+                    : 'border-terreta-border hover:border-terreta-secondary/30 hover:shadow-md'
                 }`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="font-serif text-xl text-terreta-dark mb-1">{project.name}</h3>
                     {project.slogan && (
-                      <p className="text-sm text-gray-500 italic mb-2">{project.slogan}</p>
+                      <p className="text-sm text-terreta-secondary italic mb-2">{project.slogan}</p>
                     )}
                   </div>
                   <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold uppercase rounded-full">
@@ -208,7 +208,7 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
                   />
                   <div>
                     <p className="text-sm font-bold text-terreta-dark">{project.author.name}</p>
-                    <p className="text-xs text-gray-500">@{project.author.username}</p>
+                    <p className="text-xs text-terreta-secondary">@{project.author.username}</p>
                   </div>
                 </div>
 
@@ -216,19 +216,19 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
                   {project.categories.slice(0, 3).map((cat, idx) => (
                     <span
                       key={idx}
-                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                      className="px-2 py-1 bg-terreta-bg text-terreta-dark text-xs rounded-full border border-terreta-border"
                     >
                       {cat}
                     </span>
                   ))}
                   {project.categories.length > 3 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                    <span className="px-2 py-1 bg-terreta-bg text-terreta-dark text-xs rounded-full border border-terreta-border">
                       +{project.categories.length - 3}
                     </span>
                   )}
                 </div>
 
-                <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+                <p className="text-sm text-terreta-secondary line-clamp-2">{project.description}</p>
               </div>
             ))}
           </div>
@@ -236,26 +236,26 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
           {/* Detalles del proyecto seleccionado */}
           <div className="lg:sticky lg:top-20 lg:h-fit">
             {selectedProject ? (
-              <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-lg">
+              <div className="bg-terreta-card border border-terreta-border rounded-xl p-6 shadow-lg">
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <h3 className="font-serif text-2xl text-terreta-dark mb-2">
                       {selectedProject.name}
                     </h3>
                     {selectedProject.slogan && (
-                      <p className="text-gray-500 italic mb-4">{selectedProject.slogan}</p>
+                      <p className="text-terreta-secondary italic mb-4">{selectedProject.slogan}</p>
                     )}
                   </div>
                   <button
                     onClick={() => setSelectedProject(null)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-terreta-secondary hover:text-terreta-dark"
                   >
                     <X size={20} />
                   </button>
                 </div>
 
                 {/* Autor */}
-                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-gray-100">
+                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-terreta-border">
                   <img
                     src={selectedProject.author.avatar}
                     alt={selectedProject.author.name}
@@ -263,7 +263,7 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
                   />
                   <div>
                     <p className="font-bold text-terreta-dark">{selectedProject.author.name}</p>
-                    <p className="text-sm text-gray-500">@{selectedProject.author.username}</p>
+                    <p className="text-sm text-terreta-secondary">@{selectedProject.author.username}</p>
                   </div>
                 </div>
 
@@ -272,7 +272,7 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
                   <h4 className="font-bold text-sm text-terreta-dark mb-2 uppercase tracking-wide">
                     Descripción
                   </h4>
-                  <p className="text-gray-700 leading-relaxed">{selectedProject.description}</p>
+                  <p className="text-terreta-dark/90 leading-relaxed">{selectedProject.description}</p>
                 </div>
 
                 {/* Imágenes */}
@@ -300,7 +300,7 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
                     <h4 className="font-bold text-sm text-terreta-dark mb-2 uppercase tracking-wide">
                       Video
                     </h4>
-                    <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+                    <div className="aspect-video rounded-lg overflow-hidden bg-terreta-bg">
                       <iframe
                         src={selectedProject.video_url}
                         className="w-full h-full"
@@ -322,7 +322,7 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
                         {selectedProject.categories.map((cat, idx) => (
                           <span
                             key={idx}
-                            className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                            className="px-3 py-1 bg-terreta-bg text-terreta-dark text-sm rounded-full border border-terreta-border"
                           >
                             {cat}
                           </span>
@@ -361,7 +361,7 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
                 </div>
 
                 {/* Acciones */}
-                <div className="flex gap-3 pt-6 border-t border-gray-100">
+                <div className="flex gap-3 pt-6 border-t border-terreta-border">
                   <button
                     onClick={() => handleApprove(selectedProject.id)}
                     disabled={processing === selectedProject.id}
@@ -381,9 +381,9 @@ export const AdminProjectsPanel: React.FC<AdminProjectsPanelProps> = ({ user }) 
                 </div>
               </div>
             ) : (
-              <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-                <Eye className="text-gray-300 mx-auto mb-4" size={48} />
-                <p className="text-gray-500">Selecciona un proyecto para ver los detalles</p>
+              <div className="bg-terreta-card border border-terreta-border rounded-xl p-12 text-center">
+                <Eye className="text-terreta-secondary mx-auto mb-4" size={48} />
+                <p className="text-terreta-secondary">Selecciona un proyecto para ver los detalles</p>
               </div>
             )}
           </div>
