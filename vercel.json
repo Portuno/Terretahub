@@ -6,13 +6,11 @@
     },
     {
       "source": "/app",
-      "destination": "/",
-      "permanent": true
+      "destination": "/"
     },
     {
       "source": "/app/:path*",
-      "destination": "/:path*",
-      "permanent": true
+      "destination": "/:path*"
     },
     {
       "source": "/(.*)",
