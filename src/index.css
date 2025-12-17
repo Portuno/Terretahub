@@ -12,7 +12,28 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: rgb(var(--bg-main));
   color: rgb(var(--text-main));
-  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Global Smooth Theme Transitions */
+body, 
+div, 
+span, 
+nav, 
+aside, 
+header, 
+footer, 
+button, 
+input, 
+textarea, 
+select, 
+p, 
+h1, h2, h3, h4, h5, h6, 
+a, 
+svg, 
+path {
+  transition-property: background-color, color, border-color, fill, stroke, box-shadow;
+  transition-duration: 300ms; /* Faster transition to avoid muddy grey midpoint in Dark<->Light switches */
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :root {
@@ -28,25 +49,26 @@ body {
 }
 
 html.theme-tierra {
-  --bg-main: 243 239 231;
+  /* Tierra - Warm Sand/Cream - More saturated to avoid washing out */
+  --bg-main: 247 243 235;      /* #F7F3EB - Richer Cream */
   --nav-bg: 255 255 255;
-  --sidebar-bg: 234 227 213;
-  --text-main: 62 39 35;
-  --text-secondary: 93 64 55;
-  --accent: 217 119 6;
+  --sidebar-bg: 234 227 213;   /* #EAE3D5 */
+  --text-main: 62 39 35;       /* #3E2723 */
+  --text-secondary: 93 64 55;  /* #5D4037 */
+  --accent: 217 119 6;         /* #D97706 */
   --card-bg: 255 255 255;
-  --border-color: 209 201 188;
+  --border-color: 214 207 196; /* #D6CFC4 */
 }
 
 html.theme-aire {
-  /* Aire - Cool, Airy Blue-White */
-  --bg-main: 240 249 255;      /* #F0F9FF - Sky 50 */
-  --nav-bg: 255 255 255;       /* #FFFFFF */
-  --sidebar-bg: 224 242 254;   /* #E0F2FE - Sky 100 */
+  /* Aire - Crisp Sky/Cloud - Distinctly cool */
+  --bg-main: 236 248 255;      /* #ECF8FF - Stronger Sky Tint */
+  --nav-bg: 255 255 255;
+  --sidebar-bg: 214 235 247;   /* #D6EBF7 */
   --text-main: 15 23 42;       /* #0F172A */
   --text-secondary: 51 65 85;  /* #334155 */
   --accent: 2 132 199;         /* #0284C7 */
-  --card-bg: 255 255 255;      /* #FFFFFF */
+  --card-bg: 255 255 255;
   --border-color: 186 230 253; /* #BAE6FD */
 }
 
@@ -55,11 +77,11 @@ html.theme-fuego {
   --bg-main: 43 24 24;         /* #2B1818 - Deep Red Brown */
   --nav-bg: 69 26 26;          /* #451A1A */
   --sidebar-bg: 31 15 15;      /* #1F0F0F */
-  --text-main: 255 245 245;    /* #FFF5F5 */
-  --text-secondary: 254 202 202; /* #FECACA */
-  --accent: 245 158 11;        /* #F59E0B - Amber 500 (Brighter for dark bg) */
-  --card-bg: 54 25 25;         /* #361919 */
-  --border-color: 127 29 29;   /* #7F1D1D */
+  --text-main: 255 235 235;    /* #FFEBEB - Lighter for better contrast */
+  --text-secondary: 254 215 215; /* #FED7D7 - Lighter for better contrast */
+  --accent: 245 158 11;        /* #F59E0B - Amber 500 */
+  --card-bg: 69 26 26;         /* #451A1A - Lighter card bg for contrast against main bg */
+  --border-color: 153 27 27;   /* #991B1B */
 }
 
 html.theme-agua {
@@ -67,11 +89,11 @@ html.theme-agua {
   --bg-main: 15 23 42;         /* #0F172A - Slate 900 */
   --nav-bg: 30 41 59;          /* #1E293B */
   --sidebar-bg: 2 6 23;        /* #020617 */
-  --text-main: 224 242 254;    /* #E0F2FE */
-  --text-secondary: 148 163 184; /* #94A3B8 */
+  --text-main: 240 249 255;    /* #F0F9FF - Alice Blue */
+  --text-secondary: 186 230 253; /* #BAE6FD - Light Sky */
   --accent: 56 189 248;        /* #38BDF8 - Sky 400 */
   --card-bg: 30 41 59;         /* #1E293B - Slate 800 */
-  --border-color: 51 65 85;    /* #334155 */
+  --border-color: 71 85 105;   /* #475569 */
 }
 
 /* Animations */
