@@ -77,6 +77,7 @@ export interface LinkBioProfile {
   displayName: string;
   bio: string;
   avatar: string;
+  cvUrl?: string; // URL to the PDF CV
   socials: SocialLinks;
   blocks: BioBlock[];
   theme: BioTheme;

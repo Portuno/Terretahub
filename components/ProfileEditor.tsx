@@ -4,7 +4,7 @@ import {
   Youtube, Music, Trash2, GripVertical, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Instagram, Twitter, Linkedin, Globe, Plus, Palette, BarChart3,
   Video, Star, Heart, Zap, CheckCircle, Upload, Camera, Smartphone, Monitor,
-  Images
+  Images, FileText, Download, X
 } from 'lucide-react';
 import { AuthUser, LinkBioProfile, BioBlock, BioTheme } from '../types';
 import { supabase } from '../lib/supabase';
@@ -181,6 +181,7 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [showInCommunity, setShowInCommunity] = useState(true);
+  const [cvUploading, setCvUploading] = useState(false);
   const hasLoadedRef = useRef(false);
   const isLoadingRef = useRef(false);
   
@@ -208,8 +209,9 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
   } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   
-  // File input ref for avatar
+  // File input ref for avatar and CV
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cvInputRef = useRef<HTMLInputElement>(null);
 
   // Gradient State Helpers
   const isGradient = profile.theme.bgType === 'gradient';
