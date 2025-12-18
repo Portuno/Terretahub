@@ -208,18 +208,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <NavLink
             key={item.id}
             to={item.path}
-            className={({ isActive }) => `w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group ${
-              isActive 
-                ? 'bg-terreta-dark text-white shadow-lg' 
-                : 'text-terreta-dark/70 hover:bg-terreta-card/40 hover:text-terreta-dark'
-            }`}
+            className={({ isActive }) =>
+              `w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group border ${
+                isActive
+                  ? 'bg-terreta-card text-terreta-dark shadow-lg border-terreta-accent/40'
+                  : 'text-terreta-dark/70 hover:bg-terreta-card/40 hover:text-terreta-dark border-transparent'
+              }`
+            }
           >
             {({ isActive }) => (
               <>
-                <span className={isActive ? 'text-terreta-accent' : 'text-current opacity-70 group-hover:opacity-100'}>
+                <span
+                  className={
+                    isActive
+                      ? 'text-terreta-accent'
+                      : 'text-current opacity-70 group-hover:opacity-100'
+                  }
+                >
                   {item.icon}
                 </span>
-                <span className={`font-sans font-medium text-sm tracking-wide ${isActive ? 'font-bold' : ''}`}>
+                <span
+                  className={`font-sans font-medium text-sm tracking-wide ${
+                    isActive ? 'font-bold' : ''
+                  }`}
+                >
                   {item.label}
                 </span>
               </>
