@@ -3,6 +3,7 @@ import { Send, User, Bold, Italic, AlertTriangle } from 'lucide-react';
 import { AgoraPost as AgoraPostComponent } from './AgoraPost';
 import { AgoraPost, AuthUser } from '../types';
 import { supabase } from '../lib/supabase';
+import { executeQueryWithRetry } from '../lib/supabaseHelpers';
 import { isAdmin } from '../lib/userRoles';
 
 // Helper para formatear timestamps
@@ -38,118 +39,125 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
     try {
       setLoading(true);
       
-      // Cargar posts
-      const { data: postsData, error: postsError } = await supabase
-        .from('agora_posts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Cargar posts con retry
+      const { data: postsData, error: postsError } = await executeQueryWithRetry(
+        async () => await supabase
+          .from('agora_posts')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        'load agora posts'
+      );
 
       if (postsError) {
-        console.error('Error al cargar posts:', postsError);
+        console.error('[AgoraFeed] Error al cargar posts:', postsError);
+        setPosts([]);
         return;
       }
 
-      if (!postsData) return;
+      if (!postsData || postsData.length === 0) {
+        setPosts([]);
+        return;
+      }
 
-        // Cargar perfiles de autores y comentarios
-        const postsWithComments = await Promise.all(
-        postsData.map(async (post: any) => {
-          // Obtener perfil del autor (siempre desde la BD para tener el avatar actualizado)
-          const { data: authorProfile, error: authorError } = await supabase
-            .from('profiles')
-            .select('id, name, username, avatar, role')
-            .eq('id', post.author_id)
-            .single();
+      // Obtener todos los IDs únicos de autores y comentarios
+      const authorIds = [...new Set(postsData.map((p: any) => p.author_id))];
+      const postIds = postsData.map((p: any) => p.id);
 
-          if (authorError) {
-            console.error('Error al cargar autor:', authorError);
-          }
-
-          // Intentar obtener el avatar de link_bio_profiles si existe (puede estar más actualizado)
-          let finalAvatar = authorProfile?.avatar;
-          if (authorProfile) {
-            const { data: linkBioProfile } = await supabase
-              .from('link_bio_profiles')
-              .select('avatar')
-              .eq('user_id', authorProfile.id)
-              .maybeSingle();
-            
-            // Usar el avatar de link_bio_profiles si existe, sino el de profiles
-            if (linkBioProfile?.avatar) {
-              finalAvatar = linkBioProfile.avatar;
-            }
-          }
-
-          // Cargar comentarios
-          const { data: commentsData, error: commentsError } = await supabase
-            .from('agora_comments')
-            .select('*')
-            .eq('post_id', post.id)
-            .order('created_at', { ascending: true });
-
-          if (commentsError) {
-            console.error('Error al cargar comentarios:', commentsError);
-          }
-
-            // Cargar perfiles de los autores de los comentarios (siempre desde la BD)
-            const commentsWithAuthors = await Promise.all(
-            (commentsData || []).map(async (comment: any) => {
-              const { data: commentAuthor, error: commentAuthorError } = await supabase
-                .from('profiles')
-                .select('id, name, username, avatar')
-                .eq('id', comment.author_id)
-                .single();
-
-              if (commentAuthorError) {
-                console.error('Error al cargar autor del comentario:', commentAuthorError);
-              }
-
-              // Intentar obtener el avatar de link_bio_profiles si existe
-              let commentAvatar = commentAuthor?.avatar;
-              if (commentAuthor) {
-                const { data: linkBioProfile } = await supabase
-                  .from('link_bio_profiles')
-                  .select('avatar')
-                  .eq('user_id', commentAuthor.id)
-                  .maybeSingle();
-                
-                if (linkBioProfile?.avatar) {
-                  commentAvatar = linkBioProfile.avatar;
-                }
-              }
-
-              return {
-                id: comment.id,
-                author: {
-                  name: commentAuthor?.name || 'Usuario',
-                  handle: `@${commentAuthor?.username || 'usuario'}`,
-                  avatar: commentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${commentAuthor?.username || 'user'}`
-                },
-                content: comment.content,
-                timestamp: formatTimestamp(comment.created_at)
-              };
-            })
-          );
-
-            return {
-              id: post.id,
-              authorId: post.author_id,
-              author: {
-                name: authorProfile?.name || 'Usuario',
-                handle: `@${authorProfile?.username || 'usuario'}`,
-                avatar: finalAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authorProfile?.username || 'user'}`,
-                role: authorProfile?.role === 'admin' ? 'Admin' : 'Miembro'
-              },
-              content: post.content,
-              timestamp: formatTimestamp(post.created_at),
-              comments: commentsWithAuthors
-            };
-        })
+      // Cargar todos los comentarios de una vez
+      const { data: allComments } = await executeQueryWithRetry(
+        async () => await supabase
+          .from('agora_comments')
+          .select('*')
+          .in('post_id', postIds)
+          .order('created_at', { ascending: true }),
+        'load agora comments'
       );
+
+      // Obtener IDs de autores de comentarios
+      const commentAuthorIds = [...new Set((allComments || []).map((c: any) => c.author_id))];
+      const allAuthorIds = [...new Set([...authorIds, ...commentAuthorIds])];
+
+      // Cargar todos los perfiles de una vez
+      const { data: allProfiles } = await executeQueryWithRetry(
+        async () => await supabase
+          .from('profiles')
+          .select('id, name, username, avatar, role')
+          .in('id', allAuthorIds),
+        'load agora author profiles'
+      );
+
+      // Cargar todos los avatares de link_bio_profiles de una vez
+      const { data: linkBioProfiles } = await executeQueryWithRetry(
+        async () => await supabase
+          .from('link_bio_profiles')
+          .select('user_id, avatar')
+          .in('user_id', allAuthorIds),
+        'load agora link bio avatars'
+      );
+
+      // Crear mapas para acceso rápido
+      const profilesMap = new Map<string, any>();
+      (allProfiles || []).forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      const avatarsMap = new Map<string, string>();
+      (linkBioProfiles || []).forEach(lbp => {
+        if (lbp.avatar) {
+          avatarsMap.set(lbp.user_id, lbp.avatar);
+        }
+      });
+
+      // Agrupar comentarios por post_id
+      const commentsByPost = new Map<string, any[]>();
+      (allComments || []).forEach((comment: any) => {
+        if (!commentsByPost.has(comment.post_id)) {
+          commentsByPost.set(comment.post_id, []);
+        }
+        commentsByPost.get(comment.post_id)!.push(comment);
+      });
+
+      // Combinar posts con información de autores y comentarios
+      const postsWithComments = postsData.map((post: any) => {
+        const authorProfile = profilesMap.get(post.author_id);
+        const finalAvatar = avatarsMap.get(post.author_id) || authorProfile?.avatar;
+
+        // Procesar comentarios del post
+        const postComments = (commentsByPost.get(post.id) || []).map((comment: any) => {
+          const commentAuthor = profilesMap.get(comment.author_id);
+          const commentAvatar = avatarsMap.get(comment.author_id) || commentAuthor?.avatar;
+
+          return {
+            id: comment.id,
+            author: {
+              name: commentAuthor?.name || 'Usuario',
+              handle: `@${commentAuthor?.username || 'usuario'}`,
+              avatar: commentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${commentAuthor?.username || 'user'}`
+            },
+            content: comment.content,
+            timestamp: formatTimestamp(comment.created_at)
+          };
+        });
+
+        return {
+          id: post.id,
+          authorId: post.author_id,
+          author: {
+            name: authorProfile?.name || 'Usuario',
+            handle: `@${authorProfile?.username || 'usuario'}`,
+            avatar: finalAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authorProfile?.username || 'user'}`,
+            role: authorProfile?.role === 'admin' ? 'Admin' : 'Miembro'
+          },
+          content: post.content,
+          timestamp: formatTimestamp(post.created_at),
+          comments: postComments
+        };
+      });
 
       setPosts(postsWithComments);
     } catch (err) {
-      console.error('Error al cargar posts:', err);
+      console.error('[AgoraFeed] Error al cargar posts:', err);
+      setPosts([]);
     } finally {
       setLoading(false);
     }

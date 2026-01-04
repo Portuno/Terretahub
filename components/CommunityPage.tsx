@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { executeQueryWithRetry } from '../lib/supabaseHelpers';
 import { UserProfile } from '../types';
 import { UserCard } from './UserCard';
 import { useProfileNavigation } from '../hooks/useProfileNavigation';
@@ -8,13 +9,16 @@ import { useProfileNavigation } from '../hooks/useProfileNavigation';
 // Función para cargar usuarios reales desde Supabase (optimizada)
 const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
   try {
-    // Cargar solo perfiles que quieren aparecer en la comunidad
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, name, username, avatar, role')
-      .eq('show_in_community', true)
-      .order('created_at', { ascending: false })
-      .limit(50); // Limitar a 50 usuarios para mejor performance
+    // Cargar solo perfiles que quieren aparecer en la comunidad con retry
+    const { data: profiles, error: profilesError } = await executeQueryWithRetry(
+      async () => await supabase
+        .from('profiles')
+        .select('id, name, username, avatar, role')
+        .eq('show_in_community', true)
+        .order('created_at', { ascending: false })
+        .limit(50), // Limitar a 50 usuarios para mejor performance
+      'load community profiles'
+    );
 
     if (profilesError) {
       console.error('[CommunityPage] Error al cargar perfiles:', profilesError);
@@ -25,18 +29,24 @@ const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
       return [];
     }
 
-    // Cargar todos los proyectos de una vez (más eficiente)
+    // Cargar todos los proyectos de una vez (más eficiente) con retry
     const profileIds = profiles.map(p => p.id);
-    const { data: allProjects } = await supabase
-      .from('projects')
-      .select('author_id, categories, technologies')
-      .in('author_id', profileIds);
+    const { data: allProjects } = await executeQueryWithRetry(
+      async () => await supabase
+        .from('projects')
+        .select('author_id, categories, technologies')
+        .in('author_id', profileIds),
+      'load community projects'
+    );
 
-    // Cargar todos los avatares de link_bio_profiles de una vez
-    const { data: linkBioProfiles } = await supabase
-      .from('link_bio_profiles')
-      .select('user_id, avatar')
-      .in('user_id', profileIds);
+    // Cargar todos los avatares de link_bio_profiles de una vez con retry
+    const { data: linkBioProfiles } = await executeQueryWithRetry(
+      async () => await supabase
+        .from('link_bio_profiles')
+        .select('user_id, avatar')
+        .in('user_id', profileIds),
+      'load community link bio avatars'
+    );
 
     // Crear mapas para acceso rápido
     const projectsByUser = new Map<string, any[]>();

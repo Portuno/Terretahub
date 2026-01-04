@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, X, FolderKanban, Calendar, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { executeQueryWithRetry } from '../lib/supabaseHelpers';
 import { ProjectStatus } from '../types';
 import { ProjectModal } from './ProjectModal';
 
@@ -54,65 +55,80 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onViewProfile,
     try {
       setLoading(true);
       
-      // Cargar proyectos publicados
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
+      // Cargar proyectos publicados con retry
+      const { data: projectsData, error: projectsError } = await executeQueryWithRetry(
+        async () => await supabase
+          .from('projects')
+          .select('*')
+          .eq('status', 'published')
+          .order('created_at', { ascending: false }),
+        'load projects'
+      );
 
       if (projectsError) {
-        console.error('Error al cargar proyectos:', projectsError);
-        return;
-      }
-
-      if (!projectsData) {
+        console.error('[ProjectsGallery] Error al cargar proyectos:', projectsError);
         setProjects([]);
         return;
       }
 
-      // Cargar información de los autores
-      const projectsWithAuthors = await Promise.all(
-        projectsData.map(async (project: ProjectFromDB) => {
-          const { data: authorProfile, error: authorError } = await supabase
-            .from('profiles')
-            .select('id, name, username, avatar')
-            .eq('id', project.author_id)
-            .single();
+      if (!projectsData || projectsData.length === 0) {
+        setProjects([]);
+        return;
+      }
 
-          if (authorError) {
-            console.error('Error al cargar autor:', authorError);
-          }
-
-          // Intentar obtener el avatar de link_bio_profiles si existe (puede estar más actualizado)
-          let finalAvatar = authorProfile?.avatar;
-          if (authorProfile) {
-            const { data: linkBioProfile } = await supabase
-              .from('link_bio_profiles')
-              .select('avatar')
-              .eq('user_id', authorProfile.id)
-              .maybeSingle();
-            
-            // Usar el avatar de link_bio_profiles si existe, sino el de profiles
-            if (linkBioProfile?.avatar) {
-              finalAvatar = linkBioProfile.avatar;
-            }
-          }
-
-          return {
-            ...project,
-            author: {
-              name: authorProfile?.name || 'Usuario',
-              username: authorProfile?.username || 'usuario',
-              avatar: finalAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authorProfile?.username || 'user'}`
-            }
-          };
-        })
+      // Obtener IDs únicos de autores
+      const authorIds = [...new Set(projectsData.map((p: ProjectFromDB) => p.author_id))];
+      
+      // Cargar todos los perfiles de una vez (batch query)
+      const { data: allProfiles } = await executeQueryWithRetry(
+        async () => await supabase
+          .from('profiles')
+          .select('id, name, username, avatar')
+          .in('id', authorIds),
+        'load author profiles'
       );
+
+      // Cargar todos los avatares de link_bio_profiles de una vez
+      const { data: linkBioProfiles } = await executeQueryWithRetry(
+        async () => await supabase
+          .from('link_bio_profiles')
+          .select('user_id, avatar')
+          .in('user_id', authorIds),
+        'load link bio avatars'
+      );
+
+      // Crear mapas para acceso rápido
+      const profilesMap = new Map<string, any>();
+      (allProfiles || []).forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      const avatarsMap = new Map<string, string>();
+      (linkBioProfiles || []).forEach(lbp => {
+        if (lbp.avatar) {
+          avatarsMap.set(lbp.user_id, lbp.avatar);
+        }
+      });
+
+      // Combinar proyectos con información de autores
+      const projectsWithAuthors = projectsData.map((project: ProjectFromDB) => {
+        const authorProfile = profilesMap.get(project.author_id);
+        const finalAvatar = avatarsMap.get(project.author_id) || authorProfile?.avatar;
+
+        return {
+          ...project,
+          author: {
+            name: authorProfile?.name || 'Usuario',
+            username: authorProfile?.username || 'usuario',
+            avatar: finalAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authorProfile?.username || 'user'}`
+          }
+        };
+      });
 
       setProjects(projectsWithAuthors);
     } catch (err) {
-      console.error('Error al cargar proyectos:', err);
+      console.error('[ProjectsGallery] Error al cargar proyectos:', err);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
