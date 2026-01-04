@@ -9,69 +9,90 @@ import { useProfileNavigation } from '../hooks/useProfileNavigation';
 // Función para cargar usuarios reales desde Supabase (optimizada)
 const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
   try {
-    // Cargar solo perfiles que quieren aparecer en la comunidad con retry
+    // Optimized: Use RPC function to get community profiles with optimized avatars
+    // This reduces payload from 5+ MB to < 100 KB by limiting avatar sizes
     const { data: profiles, error: profilesError } = await executeQueryWithRetry(
-      async () => await supabase
-        .from('profiles')
-        .select('id, name, username, avatar, role')
-        .eq('show_in_community', true)
-        .order('created_at', { ascending: false })
-        .limit(50), // Limitar a 50 usuarios para mejor performance
+      async () => await supabase.rpc('get_community_profiles', { limit_count: 50 }),
       'load community profiles'
     );
 
     if (profilesError) {
       console.error('[CommunityPage] Error al cargar perfiles:', profilesError);
-      // Si es un error de red después de todos los reintentos, mostrar mensaje útil
-      if (profilesError.message?.includes('Failed to fetch') || 
-          profilesError.message?.includes('connection') ||
-          profilesError.message?.includes('network')) {
-        console.warn('[CommunityPage] Network error after retries, returning empty array');
+      // Fallback to old method if RPC function doesn't exist
+      console.warn('[CommunityPage] RPC function not available, using fallback method');
+      const fallbackResult = await executeQueryWithRetry(
+        async () => await supabase
+          .from('profiles')
+          .select('id, name, username, avatar, role')
+          .eq('show_in_community', true)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        'load community profiles (fallback)'
+      );
+      
+      if (fallbackResult.error || !fallbackResult.data) {
+        return [];
       }
-      return [];
+      
+      // Use fallback profiles
+      const fallbackProfiles = fallbackResult.data;
+      const profileIds = fallbackProfiles.map((p: any) => p.id);
+      
+      // Load tags using RPC or fallback
+      const tagsResult = await executeQueryWithRetry(
+        async () => await supabase.rpc('get_user_tags', { user_ids: profileIds }),
+        'load community tags'
+      );
+      
+      const tagsByUser = new Map<string, string[]>();
+      if (tagsResult.data && !tagsResult.error) {
+        tagsResult.data.forEach((item: { author_id: string; tags: string[] }) => {
+          if (item.tags && item.tags.length > 0) {
+            tagsByUser.set(item.author_id, item.tags);
+          }
+        });
+      }
+      
+      return fallbackProfiles.map((profile: any) => {
+        const tags = (tagsByUser.get(profile.id) || []).slice(0, 5);
+        const displayRole = profile.role === 'admin' ? 'ADMIN' : 'MIEMBRO';
+        return {
+          id: profile.id,
+          name: profile.name,
+          role: displayRole,
+          handle: `@${profile.username}`,
+          avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+          tags: tags.length > 0 ? tags : ['Terreta Hub']
+        };
+      });
     }
 
     if (!profiles || profiles.length === 0) {
       return [];
     }
 
-    // Cargar proyectos y avatares de forma optimizada
+    // Cargar tags de forma optimizada
     const profileIds = profiles.map(p => p.id);
     
     // Optimized: Use database function to get aggregated tags instead of all projects
     // This reduces payload from 5+ MB to < 100 KB
-    // Fallback to old method if function doesn't exist yet
-    const [tagsResult, linkBioResult] = await Promise.all([
-      executeQueryWithRetry(
-        async () => await supabase.rpc('get_user_tags', { user_ids: profileIds }),
-        'load community tags'
-      ),
-      executeQueryWithRetry(
-        async () => await supabase
-          .from('link_bio_profiles')
-          .select('user_id, avatar')
-          .in('user_id', profileIds)
-          .limit(100), // Limit to prevent huge payloads (should be max 50 anyway)
-        'load community link bio avatars'
-      )
-    ]);
+    const tagsResult = await executeQueryWithRetry(
+      async () => await supabase.rpc('get_user_tags', { user_ids: profileIds }),
+      'load community tags'
+    );
 
-    const userTags = tagsResult.data;
-    const linkBioProfiles = linkBioResult.data;
-
-    // Crear mapas para acceso rápido
     const tagsByUser = new Map<string, string[]>();
     
     // If RPC function exists and returned data, use it
-    if (userTags && !tagsResult.error) {
-      userTags.forEach((item: { author_id: string; tags: string[] }) => {
+    if (tagsResult.data && !tagsResult.error) {
+      tagsResult.data.forEach((item: { author_id: string; tags: string[] }) => {
         if (item.tags && item.tags.length > 0) {
           tagsByUser.set(item.author_id, item.tags);
         }
       });
     } else if (tagsResult.error) {
       // Fallback: if function doesn't exist, fetch projects with limit
-      console.warn('[CommunityPage] RPC function not available, using fallback method');
+      console.warn('[CommunityPage] Tags RPC function not available, using fallback method');
       const fallbackResult = await executeQueryWithRetry(
         async () => await supabase
           .from('projects')
@@ -102,22 +123,14 @@ const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
       }
     }
 
-    const avatarsByUser = new Map<string, string>();
-    if (linkBioProfiles) {
-      linkBioProfiles.forEach(lbp => {
-        if (lbp.avatar) {
-          avatarsByUser.set(lbp.user_id, lbp.avatar);
-        }
-      });
-    }
-
     // Procesar usuarios con los datos ya cargados
+    // Note: get_community_profiles already returns optimized avatars, so we don't need to load link_bio_profiles
     const usersWithTags = profiles.map((profile) => {
       // Obtener tags agregados directamente de la función
       const tags = (tagsByUser.get(profile.id) || []).slice(0, 5); // Limitar a 5 tags
 
-      // Obtener avatar actualizado de link_bio_profiles si existe
-      const finalAvatar = avatarsByUser.get(profile.id) || profile.avatar;
+      // Avatar ya viene optimizado de get_community_profiles
+      const finalAvatar = profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`;
 
       // Formatear role para mostrar
       const displayRole = profile.role === 'admin' ? 'ADMIN' : 'MIEMBRO';
@@ -127,7 +140,7 @@ const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
         name: profile.name,
         role: displayRole,
         handle: `@${profile.username}`,
-        avatar: finalAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
+        avatar: finalAvatar,
         tags: tags.length > 0 ? tags : ['Terreta Hub']
       };
     });
