@@ -65,23 +65,36 @@ USING (
 );
 
 -- ============================================
--- 3. FUNCIÓN PARA OBTENER URL DE AVATAR
+-- 3. FUNCIÓN PARA LIMPIAR AVATARES BASE64 GRANDES
 -- ============================================
--- Esta función ayuda a construir la URL pública del avatar desde Storage
+-- Esta función reemplaza avatares base64 grandes con defaults
+-- Útil para limpiar datos existentes sin migración inmediata
 
-CREATE OR REPLACE FUNCTION get_avatar_url(user_id UUID, filename TEXT DEFAULT 'avatar.jpg')
-RETURNS TEXT
+CREATE OR REPLACE FUNCTION clean_large_base64_avatars()
+RETURNS INTEGER
 LANGUAGE plpgsql
-STABLE
+SECURITY DEFINER
 AS $$
+DECLARE
+  updated_count INTEGER;
 BEGIN
-  -- Construir la URL pública del avatar en Storage
-  -- Formato: https://[project-ref].supabase.co/storage/v1/object/public/avatars/[user_id]/[filename]
-  RETURN format('https://%s.supabase.co/storage/v1/object/public/avatars/%s/%s', 
-    current_setting('app.settings.supabase_project_ref', true),
-    user_id,
-    filename
-  );
+  -- Reemplazar avatares base64 grandes en profiles con defaults
+  UPDATE profiles
+  SET avatar = format('https://api.dicebear.com/7.x/avataaars/svg?seed=%s', COALESCE(username, 'user'))
+  WHERE avatar IS NOT NULL 
+    AND length(avatar) > 500 
+    AND avatar LIKE 'data:image%';
+  
+  GET DIAGNOSTICS updated_count = ROW_COUNT;
+  
+  -- También limpiar en link_bio_profiles
+  UPDATE link_bio_profiles
+  SET avatar = NULL
+  WHERE avatar IS NOT NULL 
+    AND length(avatar) > 500 
+    AND avatar LIKE 'data:image%';
+  
+  RETURN updated_count;
 END;
 $$;
 
