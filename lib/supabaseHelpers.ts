@@ -59,10 +59,16 @@ const isNonRetryableError = (error: any): boolean => {
 export const executeQueryWithRetry = async <T = any>(
   queryFn: () => Promise<{ data: T | null; error: any }>,
   queryName: string,
-  retryCount = 0
+  retryCount = 0,
+  customTimeout?: number
 ): Promise<{ data: T | null; error: any }> => {
   const MAX_RETRIES = 2;
-  const TIMEOUT = 10000; // 10 segundos por intento
+  // Timeouts más largos para queries que sabemos pueden ser lentas (debido a RLS)
+  const TIMEOUT = customTimeout || (
+    queryName.includes('community') || queryName.includes('profiles') 
+      ? 20000 // 20 segundos para queries de perfiles/comunidad
+      : 10000 // 10 segundos para otras queries
+  );
   
   try {
     const queryStart = Date.now();
@@ -95,7 +101,7 @@ export const executeQueryWithRetry = async <T = any>(
         const delay = 1000 * (retryCount + 1);
         console.log(`[SupabaseHelper] Retrying ${queryName}... (${result.error.message || result.error.code}) - waiting ${delay}ms`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return executeQueryWithRetry(queryFn, queryName, retryCount + 1);
+        return executeQueryWithRetry(queryFn, queryName, retryCount + 1, customTimeout);
       } else {
         console.log(`[SupabaseHelper] Not retrying ${queryName} - non-retryable error: ${result.error.code || result.error.message}`);
       }
@@ -108,11 +114,11 @@ export const executeQueryWithRetry = async <T = any>(
     const isTimeout = errorMessage.includes('timeout');
     const isNetworkErr = isNetworkError(err);
     
-    if ((isTimeout || isNetworkErr) && retryCount < MAX_RETRIES) {
+      if ((isTimeout || isNetworkErr) && retryCount < MAX_RETRIES) {
       const delay = 1000 * (retryCount + 1);
       console.log(`[SupabaseHelper] Exception caught on ${queryName}, retrying... (${errorMessage}) - waiting ${delay}ms`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      return executeQueryWithRetry(queryFn, queryName, retryCount + 1);
+      return executeQueryWithRetry(queryFn, queryName, retryCount + 1, customTimeout);
     }
     
     // Si no es retryable o ya agotamos los reintentos, retornar como error estructurado
