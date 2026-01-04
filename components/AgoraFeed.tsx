@@ -39,12 +39,69 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
     try {
       setLoading(true);
       
+      // OPTIMIZED: Use single RPC function that loads posts + comments + profiles in one query
+      // This reduces from 3+ queries to 1, and filters large base64 avatars
+      const { data: feedData, error: feedError } = await executeQueryWithRetry(
+        async () => await supabase.rpc('get_agora_feed', { limit_posts: 50 }),
+        'load agora feed'
+      );
+
+      if (feedError) {
+        console.error('[AgoraFeed] Error al cargar feed:', feedError);
+        // Fallback to old method if function doesn't exist
+        await loadPostsFallback();
+        return;
+      }
+
+      if (!feedData || !feedData.posts || feedData.posts.length === 0) {
+        setPosts([]);
+        return;
+      }
+
+      // Transform the RPC response to match our interface
+      const transformedPosts: AgoraPost[] = feedData.posts.map((post: any) => ({
+        id: post.id,
+        authorId: post.author_id,
+        author: {
+          name: post.author?.name || 'Usuario',
+          handle: `@${post.author?.username || 'usuario'}`,
+          avatar: post.author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author?.username || 'user'}`,
+          role: post.author?.role === 'admin' ? 'Admin' : 'Miembro'
+        },
+        content: post.content,
+        timestamp: formatTimestamp(post.created_at),
+        comments: (post.comments || []).map((comment: any) => ({
+          id: comment.id,
+          author: {
+            name: comment.author?.name || 'Usuario',
+            handle: `@${comment.author?.username || 'usuario'}`,
+            avatar: comment.author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author?.username || 'user'}`
+          },
+          content: comment.content,
+          timestamp: formatTimestamp(comment.created_at)
+        }))
+      }));
+
+      setPosts(transformedPosts);
+    } catch (err) {
+      console.error('[AgoraFeed] Error al cargar posts:', err);
+      // Fallback to old method on error
+      await loadPostsFallback();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback method using the old approach (in case the RPC function doesn't exist)
+  const loadPostsFallback = async () => {
+    try {
       // Cargar posts con retry
       const { data: postsData, error: postsError } = await executeQueryWithRetry(
         async () => await supabase
           .from('agora_posts')
           .select('*')
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(50), // Limit initial load
         'load agora posts'
       );
 
@@ -78,7 +135,6 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
       const allAuthorIds = [...new Set([...authorIds, ...commentAuthorIds])];
 
       // Optimized: Use RPC function to get profiles with avatars in a single query
-      // This eliminates multiple round trips and reduces query time significantly
       const { data: allProfiles, error: profilesError } = await executeQueryWithRetry(
         async () => await supabase.rpc('get_profiles_batch_rpc', { user_ids: allAuthorIds }),
         'load agora author profiles'

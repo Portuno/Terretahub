@@ -57,10 +57,10 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onViewProfile,
       
       // Optimized: Use database function that does JOIN in a single query
       // This eliminates multiple round trips and reduces payload size significantly
-      // Using pagination to limit initial load (100 projects)
+      // Using pagination to limit initial load (20 projects for faster initial load)
       const { data: projectsData, error: projectsError } = await executeQueryWithRetry(
         async () => await supabase.rpc('get_projects_with_authors', { 
-          limit_count: 100, 
+          limit_count: 20,  // Reduced from 100 to 20 for faster initial load
           offset_count: 0 
         }),
         'load projects with authors'

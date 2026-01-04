@@ -104,6 +104,9 @@ $$;
 -- 3. OPTIMIZE PROJECTS QUERY - ADD LIMIT AND PAGINATION SUPPORT
 -- ============================================
 -- Agregar parámetros de limit y offset para paginación
+-- Primero eliminamos la versión antigua sin parámetros si existe
+
+DROP FUNCTION IF EXISTS get_projects_with_authors();
 
 CREATE OR REPLACE FUNCTION get_projects_with_authors(
   limit_count INTEGER DEFAULT 100,

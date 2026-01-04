@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import { PublishProfileModal } from './PublishProfileModal';
 import { Toast } from './Toast';
 import { trackLinkClick, getProfileViewsStats, getLinkClicksStats } from '../lib/analytics';
+import { uploadAvatarToStorage, migrateAvatarToStorage } from '../lib/avatarUtils';
 
 interface ProfileEditorProps {
   user: AuthUser;
@@ -870,14 +871,38 @@ export const ProfileEditor: React.FC<ProfileEditorProps> = ({ user }) => {
     }
   };
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile(prev => ({ ...prev, avatar: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida');
+      return;
+    }
+    
+    // Validar tamaño (máximo 5MB antes de optimizar)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen es demasiado grande. Por favor selecciona una imagen menor a 5MB');
+      return;
+    }
+    
+    try {
+      // Subir a Storage y obtener URL
+      const avatarUrl = await uploadAvatarToStorage(user.id, file);
+      
+      // Actualizar perfil con la URL de Storage
+      setProfile(prev => ({ ...prev, avatar: avatarUrl }));
+      
+      console.log('[ProfileEditor] Avatar subido a Storage:', avatarUrl);
+    } catch (error: any) {
+      console.error('[ProfileEditor] Error al subir avatar:', error);
+      alert('Error al subir el avatar: ' + (error.message || 'Error desconocido'));
+    } finally {
+      // Limpiar input para permitir subir el mismo archivo de nuevo
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 
