@@ -163,18 +163,16 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                       activeClass = 'border-amber-500 bg-amber-50/10 text-amber-600 dark:text-amber-400';
                   }
 
+                  const buttonClassName = isActive
+                    ? `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition focus:outline-none focus:ring-1 focus:ring-terreta-accent ${activeClass} shadow-sm font-semibold`
+                    : 'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition focus:outline-none focus:ring-1 focus:ring-terreta-accent border-terreta-border text-terreta-secondary hover:border-terreta-accent/50 bg-terreta-card';
+
                   return (
                     <button
                       key={vertical}
                       type="button"
                       onClick={() => toggleItem(vertical, selectedVerticals, setSelectedVerticals)}
-                      className={`
-                        inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition focus:outline-none focus:ring-1 focus:ring-terreta-accent
-                        ${isActive 
-                            ? `${activeClass} shadow-sm font-semibold` 
-                            : 'border-terreta-border text-terreta-secondary hover:border-terreta-accent/50 bg-terreta-card'
-                        }
-                      `}
+                      className={buttonClassName}
                     >
                       {vertical}
                     </button>

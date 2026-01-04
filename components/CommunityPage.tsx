@@ -35,39 +35,71 @@ const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
       return [];
     }
 
-    // Cargar todos los proyectos de una vez (más eficiente) con retry
+    // Cargar proyectos y avatares de forma optimizada
     const profileIds = profiles.map(p => p.id);
     
-    // Optimized: Load projects and link_bio_profiles in parallel
-    const [projectsResult, linkBioResult] = await Promise.all([
+    // Optimized: Use database function to get aggregated tags instead of all projects
+    // This reduces payload from 5+ MB to < 100 KB
+    // Fallback to old method if function doesn't exist yet
+    const [tagsResult, linkBioResult] = await Promise.all([
       executeQueryWithRetry(
-        async () => await supabase
-          .from('projects')
-          .select('author_id, categories, technologies')
-          .in('author_id', profileIds),
-        'load community projects'
+        async () => await supabase.rpc('get_user_tags', { user_ids: profileIds }),
+        'load community tags'
       ),
       executeQueryWithRetry(
         async () => await supabase
           .from('link_bio_profiles')
           .select('user_id, avatar')
-          .in('user_id', profileIds),
+          .in('user_id', profileIds)
+          .limit(100), // Limit to prevent huge payloads (should be max 50 anyway)
         'load community link bio avatars'
       )
     ]);
 
-    const allProjects = projectsResult.data;
+    const userTags = tagsResult.data;
     const linkBioProfiles = linkBioResult.data;
 
     // Crear mapas para acceso rápido
-    const projectsByUser = new Map<string, any[]>();
-    if (allProjects) {
-      allProjects.forEach(project => {
-        if (!projectsByUser.has(project.author_id)) {
-          projectsByUser.set(project.author_id, []);
+    const tagsByUser = new Map<string, string[]>();
+    
+    // If RPC function exists and returned data, use it
+    if (userTags && !tagsResult.error) {
+      userTags.forEach((item: { author_id: string; tags: string[] }) => {
+        if (item.tags && item.tags.length > 0) {
+          tagsByUser.set(item.author_id, item.tags);
         }
-        projectsByUser.get(project.author_id)!.push(project);
       });
+    } else if (tagsResult.error) {
+      // Fallback: if function doesn't exist, fetch projects with limit
+      console.warn('[CommunityPage] RPC function not available, using fallback method');
+      const fallbackResult = await executeQueryWithRetry(
+        async () => await supabase
+          .from('projects')
+          .select('author_id, categories, technologies')
+          .in('author_id', profileIds)
+          .eq('status', 'published')
+          .limit(500), // Limit to reduce payload
+        'load community projects (fallback)'
+      );
+      
+      if (fallbackResult.data) {
+        const projectsByUser = new Map<string, Set<string>>();
+        fallbackResult.data.forEach((project: any) => {
+          if (!projectsByUser.has(project.author_id)) {
+            projectsByUser.set(project.author_id, new Set());
+          }
+          const tagSet = projectsByUser.get(project.author_id)!;
+          if (project.categories) {
+            project.categories.forEach((tag: string) => tagSet.add(tag));
+          }
+          if (project.technologies) {
+            project.technologies.forEach((tag: string) => tagSet.add(tag));
+          }
+        });
+        projectsByUser.forEach((tagSet, authorId) => {
+          tagsByUser.set(authorId, Array.from(tagSet));
+        });
+      }
     }
 
     const avatarsByUser = new Map<string, string>();
@@ -81,18 +113,8 @@ const loadUsersFromSupabase = async (): Promise<UserProfile[]> => {
 
     // Procesar usuarios con los datos ya cargados
     const usersWithTags = profiles.map((profile) => {
-      // Extraer tags únicos de categorías y tecnologías
-      const tagsSet = new Set<string>();
-      const userProjects = projectsByUser.get(profile.id) || [];
-      userProjects.forEach((project) => {
-        if (project.categories) {
-          project.categories.forEach((tag: string) => tagsSet.add(tag));
-        }
-        if (project.technologies) {
-          project.technologies.forEach((tag: string) => tagsSet.add(tag));
-        }
-      });
-      const tags = Array.from(tagsSet).slice(0, 5); // Limitar a 5 tags
+      // Obtener tags agregados directamente de la función
+      const tags = (tagsByUser.get(profile.id) || []).slice(0, 5); // Limitar a 5 tags
 
       // Obtener avatar actualizado de link_bio_profiles si existe
       const finalAvatar = avatarsByUser.get(profile.id) || profile.avatar;

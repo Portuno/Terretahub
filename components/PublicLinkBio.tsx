@@ -159,20 +159,34 @@ export const PublicLinkBio: React.FC = () => {
         let queryError = null;
 
         try {
-          // Optimized: Single query with OR condition (reduces from 2 sequential queries to 1)
-          // Try custom_slug first (more specific), then username as fallback
-          console.log('[PublicLinkBio] Querying by custom_slug or username:', customSlugLower);
+          // Optimized: Try custom_slug first (uses unique index), then username as fallback
+          // This is faster than OR queries because each query can use its optimal index
+          console.log('[PublicLinkBio] Querying by custom_slug first:', customSlugLower);
           
-          // Use OR to search both fields in a single query
-          const result = await executeQueryWithRetry(
+          // First try custom_slug (most selective, has unique index)
+          let result = await executeQueryWithRetry(
             () => supabase
               .from('link_bio_profiles')
               .select('user_id, username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
-              .or(`custom_slug.eq.${customSlugLower},username.eq.${customSlugLower}`)
+              .eq('custom_slug', customSlugLower)
               .eq('is_published', true)
               .maybeSingle(),
-            'link_bio_profile query'
+            'link_bio_profile query (custom_slug)'
           );
+          
+          // If not found by custom_slug, try username
+          if (!result.data && !result.error) {
+            console.log('[PublicLinkBio] Not found by custom_slug, trying username:', customSlugLower);
+            result = await executeQueryWithRetry(
+              () => supabase
+                .from('link_bio_profiles')
+                .select('user_id, username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
+                .eq('username', customSlugLower)
+                .eq('is_published', true)
+                .maybeSingle(),
+              'link_bio_profile query (username)'
+            );
+          }
           
           if (result.data) {
             data = result.data;

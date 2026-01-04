@@ -134,3 +134,70 @@ export const executeQueryWithRetry = async <T = any>(
   }
 };
 
+/**
+ * Ejecuta una query con múltiples IDs en lotes para evitar timeouts
+ * @param ids Array de IDs a consultar
+ * @param queryFn Función que recibe un array de IDs y retorna la promesa de la query
+ * @param queryName Nombre de la query para logging
+ * @param batchSize Tamaño del lote (default: 50)
+ * @returns Resultado combinado de todas las queries
+ */
+export const executeBatchedQuery = async <T = any>(
+  ids: string[],
+  queryFn: (batchIds: string[]) => Promise<{ data: T[] | null; error: any }>,
+  queryName: string,
+  batchSize = 50
+): Promise<{ data: T[] | null; error: any }> => {
+  if (ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  // Si hay pocos IDs, ejecutar directamente sin batching
+  if (ids.length <= batchSize) {
+    return executeQueryWithRetry(
+      () => queryFn(ids),
+      queryName
+    );
+  }
+
+  // Dividir en lotes
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += batchSize) {
+    batches.push(ids.slice(i, i + batchSize));
+  }
+
+  console.log(`[SupabaseHelper] ${queryName} - batching ${ids.length} IDs into ${batches.length} batches of ~${batchSize}`);
+
+  // Ejecutar todos los lotes en paralelo
+  const batchResults = await Promise.all(
+    batches.map((batch, index) =>
+      executeQueryWithRetry(
+        () => queryFn(batch),
+        `${queryName} (batch ${index + 1}/${batches.length})`
+      )
+    )
+  );
+
+  // Combinar resultados
+  const allData: T[] = [];
+  let hasError = false;
+  let firstError: any = null;
+
+  for (const result of batchResults) {
+    if (result.error) {
+      hasError = true;
+      if (!firstError) {
+        firstError = result.error;
+      }
+    }
+    if (result.data) {
+      allData.push(...result.data);
+    }
+  }
+
+  return {
+    data: hasError && allData.length === 0 ? null : allData,
+    error: hasError ? firstError : null
+  };
+};
+

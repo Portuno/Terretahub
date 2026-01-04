@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, X, FolderKanban, Calendar, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { executeQueryWithRetry } from '../lib/supabaseHelpers';
+import { executeQueryWithRetry, executeBatchedQuery } from '../lib/supabaseHelpers';
 import { ProjectStatus } from '../types';
 import { ProjectModal } from './ProjectModal';
 
@@ -79,22 +79,32 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onViewProfile,
       // Obtener IDs únicos de autores
       const authorIds = [...new Set(projectsData.map((p: ProjectFromDB) => p.author_id))];
       
-      // Optimized: Load profiles and link_bio_profiles in parallel to reduce total time
-      // This reduces from sequential (5.4s + 4.3s = 9.7s) to parallel (max(5.4s, 4.3s) = 5.4s)
+      // Optimized: Load profiles and link_bio_profiles in parallel with batching for large ID lists
+      // Batching prevents timeouts when there are many author IDs
       const [profilesResult, linkBioResult] = await Promise.all([
-        executeQueryWithRetry(
-          async () => await supabase
-            .from('profiles')
-            .select('id, name, username, avatar')
-            .in('id', authorIds),
-          'load author profiles'
+        executeBatchedQuery(
+          authorIds,
+          async (batchIds) => {
+            const result = await supabase
+              .from('profiles')
+              .select('id, name, username, avatar')
+              .in('id', batchIds);
+            return { data: result.data || [], error: result.error };
+          },
+          'load author profiles',
+          50 // Batch size of 50 IDs per query
         ),
-        executeQueryWithRetry(
-          async () => await supabase
-            .from('link_bio_profiles')
-            .select('user_id, avatar')
-            .in('user_id', authorIds),
-          'load link bio avatars'
+        executeBatchedQuery(
+          authorIds,
+          async (batchIds) => {
+            const result = await supabase
+              .from('link_bio_profiles')
+              .select('user_id, avatar')
+              .in('user_id', batchIds);
+            return { data: result.data || [], error: result.error };
+          },
+          'load link bio avatars',
+          50 // Batch size of 50 IDs per query
         )
       ]);
 
@@ -297,19 +307,20 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onViewProfile,
                   Fase del Proyecto
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {['Idea', 'MVP', 'Mercado Temprano', 'Escalado'].map(phase => (
-                    <button
-                      key={phase}
-                      onClick={() => setSelectedPhase(selectedPhase === phase ? null : phase)}
-                      className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                        selectedPhase === phase
-                          ? 'bg-terreta-accent text-white'
-                          : 'bg-terreta-bg text-terreta-secondary hover:bg-terreta-border'
-                      }`}
-                    >
-                      {phase}
-                    </button>
-                  ))}
+                  {['Idea', 'MVP', 'Mercado Temprano', 'Escalado'].map(phase => {
+                    const phaseClassName = selectedPhase === phase
+                      ? 'px-4 py-2 rounded-full text-sm font-bold transition-all bg-terreta-accent text-white'
+                      : 'px-4 py-2 rounded-full text-sm font-bold transition-all bg-terreta-bg text-terreta-secondary hover:bg-terreta-border';
+                    return (
+                      <button
+                        key={phase}
+                        onClick={() => setSelectedPhase(selectedPhase === phase ? null : phase)}
+                        className={phaseClassName}
+                      >
+                        {phase}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -320,19 +331,20 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onViewProfile,
                     Categorías
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {allCategories.map(category => (
-                      <button
-                        key={category}
-                        onClick={() => handleCategoryToggle(category)}
-                        className={`px-3 py-1 rounded-full text-sm transition-all ${
-                          selectedCategories.includes(category)
-                            ? 'bg-terreta-accent text-white'
-                            : 'bg-terreta-bg text-terreta-secondary hover:bg-terreta-border'
-                        }`}
-                      >
-                        {category}
-                      </button>
-                    ))}
+                    {allCategories.map(category => {
+                      const categoryClassName = selectedCategories.includes(category)
+                        ? 'px-3 py-1 rounded-full text-sm transition-all bg-terreta-accent text-white'
+                        : 'px-3 py-1 rounded-full text-sm transition-all bg-terreta-bg text-terreta-secondary hover:bg-terreta-border';
+                      return (
+                        <button
+                          key={category}
+                          onClick={() => handleCategoryToggle(category)}
+                          className={categoryClassName}
+                        >
+                          {category}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -344,19 +356,20 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onViewProfile,
                     Tecnologías
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {allTechnologies.map(technology => (
-                      <button
-                        key={technology}
-                        onClick={() => handleTechnologyToggle(technology)}
-                        className={`px-3 py-1 rounded-full text-sm transition-all ${
-                          selectedTechnologies.includes(technology)
-                            ? 'bg-terreta-accent/80 text-white'
-                            : 'bg-terreta-bg text-terreta-secondary hover:bg-terreta-border'
-                        }`}
-                      >
-                        {technology}
-                      </button>
-                    ))}
+                    {allTechnologies.map(technology => {
+                      const technologyClassName = selectedTechnologies.includes(technology)
+                        ? 'px-3 py-1 rounded-full text-sm transition-all bg-terreta-accent/80 text-white'
+                        : 'px-3 py-1 rounded-full text-sm transition-all bg-terreta-bg text-terreta-secondary hover:bg-terreta-border';
+                      return (
+                        <button
+                          key={technology}
+                          onClick={() => handleTechnologyToggle(technology)}
+                          className={technologyClassName}
+                        >
+                          {technology}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

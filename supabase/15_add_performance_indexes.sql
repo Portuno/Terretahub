@@ -80,6 +80,12 @@ CREATE INDEX IF NOT EXISTS idx_link_bio_profiles_user_username_published
 ON link_bio_profiles(user_id, username, is_published)
 WHERE is_published = true;
 
+-- Índice para consultas solo por username e is_published (fallback en PublicLinkBio)
+-- Esta consulta se usa cuando custom_slug no encuentra resultados
+CREATE INDEX IF NOT EXISTS idx_link_bio_profiles_username_published 
+ON link_bio_profiles(username, is_published)
+WHERE is_published = true;
+
 -- ============================================
 -- 6. ANALIZAR Y OPTIMIZAR ESTADÍSTICAS
 -- ============================================

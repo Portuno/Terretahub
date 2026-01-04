@@ -3,7 +3,7 @@ import { Send, User, Bold, Italic, AlertTriangle } from 'lucide-react';
 import { AgoraPost as AgoraPostComponent } from './AgoraPost';
 import { AgoraPost, AuthUser } from '../types';
 import { supabase } from '../lib/supabase';
-import { executeQueryWithRetry } from '../lib/supabaseHelpers';
+import { executeQueryWithRetry, executeBatchedQuery } from '../lib/supabaseHelpers';
 import { isAdmin } from '../lib/userRoles';
 
 // Helper para formatear timestamps
@@ -77,21 +77,32 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
       const commentAuthorIds = [...new Set((allComments || []).map((c: any) => c.author_id))];
       const allAuthorIds = [...new Set([...authorIds, ...commentAuthorIds])];
 
-      // Optimized: Load profiles and link_bio_profiles in parallel
+      // Optimized: Load profiles and link_bio_profiles in parallel with batching
+      // Batching prevents timeouts when there are many author IDs
       const [profilesResult, linkBioResult] = await Promise.all([
-        executeQueryWithRetry(
-          async () => await supabase
-            .from('profiles')
-            .select('id, name, username, avatar, role')
-            .in('id', allAuthorIds),
-          'load agora author profiles'
+        executeBatchedQuery(
+          allAuthorIds,
+          async (batchIds) => {
+            const result = await supabase
+              .from('profiles')
+              .select('id, name, username, avatar, role')
+              .in('id', batchIds);
+            return { data: result.data || [], error: result.error };
+          },
+          'load agora author profiles',
+          50 // Batch size of 50 IDs per query
         ),
-        executeQueryWithRetry(
-          async () => await supabase
-            .from('link_bio_profiles')
-            .select('user_id, avatar')
-            .in('user_id', allAuthorIds),
-          'load agora link bio avatars'
+        executeBatchedQuery(
+          allAuthorIds,
+          async (batchIds) => {
+            const result = await supabase
+              .from('link_bio_profiles')
+              .select('user_id, avatar')
+              .in('user_id', batchIds);
+            return { data: result.data || [], error: result.error };
+          },
+          'load agora link bio avatars',
+          50 // Batch size of 50 IDs per query
         )
       ]);
 
