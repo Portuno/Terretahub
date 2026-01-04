@@ -40,9 +40,10 @@ const AppContent: React.FC = () => {
       // Usar timeout más corto con retries en lugar de un timeout largo
       const timeoutDuration = retryCount === 0 ? INITIAL_TIMEOUT : RETRY_TIMEOUT;
       
+      // Optimized: Select only needed columns instead of *
       const profileQuery = supabase
         .from('profiles')
-        .select('*')
+        .select('id, name, username, email, avatar, role')
         .eq('id', userId)
         .single();
       

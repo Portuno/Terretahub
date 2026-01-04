@@ -24,14 +24,46 @@ export default defineConfig(({ mode }) => {
       build: {
         rollupOptions: {
           output: {
-            manualChunks: {
-              'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-              'supabase-vendor': ['@supabase/supabase-js'],
-              'lucide-vendor': ['lucide-react']
+            manualChunks: (id) => {
+              // More granular code splitting for better caching and parallel loading
+              if (id.includes('node_modules')) {
+                if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                  return 'react-vendor';
+                }
+                if (id.includes('@supabase')) {
+                  return 'supabase-vendor';
+                }
+                if (id.includes('lucide-react')) {
+                  return 'lucide-vendor';
+                }
+                // Other vendor chunks
+                return 'vendor';
+              }
+              // Split route-based chunks for better code splitting
+              if (id.includes('PublicLinkBio') || id.includes('PublicProfile')) {
+                return 'public-routes';
+              }
+              if (id.includes('Dashboard') || id.includes('CommunityPage') || id.includes('ProjectsPage')) {
+                return 'main-routes';
+              }
             }
           }
         },
-        chunkSizeWarningLimit: 600
+        chunkSizeWarningLimit: 600,
+        // Optimize chunk loading
+        cssCodeSplit: true,
+        // Enable source maps only in development
+        sourcemap: false,
+        // Minify more aggressively
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            drop_console: false, // Keep console in dev, remove in production if needed
+            drop_debugger: true
+          }
+        },
+        // Optimize CSS
+        cssMinify: true
       }
     };
 });

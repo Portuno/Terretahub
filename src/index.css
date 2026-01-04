@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Font display optimization - ensures text is visible during font load */
+@layer base {
+  * {
+    font-display: swap;
+  }
+}
+
 /* Custom scrollbar for smooth feel */
 html {
   scroll-behavior: smooth;

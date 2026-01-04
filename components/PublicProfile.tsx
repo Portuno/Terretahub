@@ -23,28 +23,31 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ handle }) => {
         setLoading(true);
         setError(null);
 
-        // Primero intentar buscar por custom_slug en link_bio_profiles
+        // Optimized: Try to find by custom_slug or username in a single query
         let profileData = null;
         let username = cleanHandle;
         let userProfile = null;
         let profileUserId: string | null = null;
 
-        const { data: linkBioBySlug } = await supabase
+        // First, try to find link_bio_profile by custom_slug or username (single query)
+        const { data: linkBioProfile } = await supabase
           .from('link_bio_profiles')
-          .select('*')
-          .eq('custom_slug', cleanHandle)
+          .select('user_id, username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
+          .or(`custom_slug.eq.${cleanHandle},username.eq.${cleanHandle}`)
           .eq('is_published', true)
           .maybeSingle();
 
-        if (linkBioBySlug) {
-          // Si encontramos por custom_slug, obtener el perfil del usuario
-          profileData = linkBioBySlug;
-          profileUserId = linkBioBySlug.user_id;
+        if (linkBioProfile) {
+          // Found by custom_slug or username in link_bio_profiles
+          profileData = linkBioProfile;
+          profileUserId = linkBioProfile.user_id;
+          
+          // Fetch username and cv_url from profiles (optimized: only needed columns)
           const { data: profileFromDb } = await supabase
             .from('profiles')
             .select('username, cv_url')
-            .eq('id', linkBioBySlug.user_id)
-            .single();
+            .eq('id', linkBioProfile.user_id)
+            .maybeSingle();
           
           if (profileFromDb) {
             username = profileFromDb.username;
@@ -53,10 +56,10 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ handle }) => {
             }
           }
         } else {
-          // Si no, buscar por username en profiles
+          // If not found, search by username in profiles
           const { data: profileFromDb } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id, name, username, email, avatar, cv_url, role')
             .eq('username', cleanHandle)
             .single();
 
@@ -70,10 +73,10 @@ export const PublicProfile: React.FC<PublicProfileProps> = ({ handle }) => {
           username = profileFromDb.username;
           profileUserId = profileFromDb.id;
 
-          // Intentar obtener link_bio_profile del usuario
+          // Try to get link_bio_profile for this user (optimized: only needed columns)
           const { data: linkBioByUsername } = await supabase
             .from('link_bio_profiles')
-            .select('*')
+            .select('user_id, username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
             .eq('user_id', profileFromDb.id)
             .eq('username', username)
             .eq('is_published', true)

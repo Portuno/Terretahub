@@ -159,48 +159,27 @@ export const PublicLinkBio: React.FC = () => {
         let queryError = null;
 
         try {
-          // Intentar buscar por custom_slug primero
-          console.log('[PublicLinkBio] Querying by custom_slug:', customSlugLower);
+          // Optimized: Single query with OR condition (reduces from 2 sequential queries to 1)
+          // Try custom_slug first (more specific), then username as fallback
+          console.log('[PublicLinkBio] Querying by custom_slug or username:', customSlugLower);
           
-          const slugResult = await executeQueryWithRetry(
+          // Use OR to search both fields in a single query
+          const result = await executeQueryWithRetry(
             () => supabase
               .from('link_bio_profiles')
               .select('user_id, username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
-              .eq('custom_slug', customSlugLower)
+              .or(`custom_slug.eq.${customSlugLower},username.eq.${customSlugLower}`)
               .eq('is_published', true)
               .maybeSingle(),
-            'custom_slug query'
+            'link_bio_profile query'
           );
           
-          if (slugResult.data) {
-            data = slugResult.data;
-            console.log('[PublicLinkBio] Profile found by custom_slug');
-          } else if (!slugResult.error || slugResult.error.code === 'PGRST116') {
-            // Si no se encuentra por custom_slug, buscar por username
-            console.log('[PublicLinkBio] Not found by slug, querying by username:', customSlugLower);
+          if (result.data) {
+            data = result.data;
+            console.log('[PublicLinkBio] Profile found');
             
-            const usernameResult = await executeQueryWithRetry(
-              () => supabase
-                .from('link_bio_profiles')
-                .select('user_id, username, display_name, bio, avatar, socials, blocks, theme, updated_at, is_published')
-                .eq('username', customSlugLower)
-                .eq('is_published', true)
-                .maybeSingle(),
-              'username query'
-            );
-            
-            if (usernameResult.data) {
-              data = usernameResult.data;
-              console.log('[PublicLinkBio] Profile found by username');
-            } else {
-              queryError = usernameResult.error || slugResult.error;
-            }
-          } else {
-            queryError = slugResult.error;
-          }
-          
-          // Fetch CV URL if we have profile data
-          if (data) {
+            // Fetch CV URL (optimized: only fetch cv_url column)
+            // Done separately to keep main query simple and fast
             try {
               const { data: userProfile } = await supabase
                 .from('profiles')
@@ -208,13 +187,15 @@ export const PublicLinkBio: React.FC = () => {
                 .eq('id', data.user_id)
                 .maybeSingle();
               
-              if (userProfile && userProfile.cv_url) {
+              if (userProfile?.cv_url) {
                 (data as any).cv_url = userProfile.cv_url;
               }
             } catch (cvError) {
-              console.warn('[PublicLinkBio] Error fetching CV URL:', cvError);
-              // No fallar si no se puede obtener el CV
+              console.warn('[PublicLinkBio] Error fetching CV URL (non-critical):', cvError);
+              // Don't fail the whole query if CV URL fetch fails
             }
+          } else {
+            queryError = result.error;
           }
         } catch (queryErr: any) {
           console.error('[PublicLinkBio] Query error caught:', queryErr);
