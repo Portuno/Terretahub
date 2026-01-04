@@ -77,49 +77,116 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
       const commentAuthorIds = [...new Set((allComments || []).map((c: any) => c.author_id))];
       const allAuthorIds = [...new Set([...authorIds, ...commentAuthorIds])];
 
-      // Optimized: Load profiles and link_bio_profiles in parallel with batching
-      // Batching prevents timeouts when there are many author IDs
-      const [profilesResult, linkBioResult] = await Promise.all([
-        executeBatchedQuery(
-          allAuthorIds,
-          async (batchIds) => {
-            const result = await supabase
-              .from('profiles')
-              .select('id, name, username, avatar, role')
-              .in('id', batchIds);
-            return { data: result.data || [], error: result.error };
-          },
-          'load agora author profiles',
-          50 // Batch size of 50 IDs per query
-        ),
-        executeBatchedQuery(
-          allAuthorIds,
-          async (batchIds) => {
-            const result = await supabase
-              .from('link_bio_profiles')
-              .select('user_id, avatar')
-              .in('user_id', batchIds);
-            return { data: result.data || [], error: result.error };
-          },
-          'load agora link bio avatars',
-          50 // Batch size of 50 IDs per query
-        )
-      ]);
+      // Optimized: Use RPC function to get profiles with avatars in a single query
+      // This eliminates multiple round trips and reduces query time significantly
+      const { data: allProfiles, error: profilesError } = await executeQueryWithRetry(
+        async () => await supabase.rpc('get_profiles_batch_rpc', { user_ids: allAuthorIds }),
+        'load agora author profiles'
+      );
 
-      const allProfiles = profilesResult.data;
-      const linkBioProfiles = linkBioResult.data;
+      if (profilesError) {
+        console.error('[AgoraFeed] Error al cargar perfiles:', profilesError);
+        // Fallback to old method if function doesn't exist
+        const [profilesResult, linkBioResult] = await Promise.all([
+          executeBatchedQuery(
+            allAuthorIds,
+            async (batchIds) => {
+              const result = await supabase
+                .from('profiles')
+                .select('id, name, username, avatar, role')
+                .in('id', batchIds);
+              return { data: result.data || [], error: result.error };
+            },
+            'load agora author profiles (fallback)',
+            50
+          ),
+          executeBatchedQuery(
+            allAuthorIds,
+            async (batchIds) => {
+              const result = await supabase
+                .from('link_bio_profiles')
+                .select('user_id, avatar')
+                .in('user_id', batchIds);
+              return { data: result.data || [], error: result.error };
+            },
+            'load agora link bio avatars (fallback)',
+            50
+          )
+        ]);
+        
+        const fallbackProfiles = profilesResult.data || [];
+        const linkBioProfiles = linkBioResult.data || [];
+        
+        // Create maps for fallback
+        const profilesMap = new Map<string, any>();
+        fallbackProfiles.forEach(profile => {
+          profilesMap.set(profile.id, profile);
+        });
+
+        const avatarsMap = new Map<string, string>();
+        linkBioProfiles.forEach(lbp => {
+          if (lbp.avatar) {
+            avatarsMap.set(lbp.user_id, lbp.avatar);
+          }
+        });
+
+        // Use fallback data
+        const allProfilesWithAvatars = fallbackProfiles.map((profile: any) => ({
+          ...profile,
+          avatar: avatarsMap.get(profile.id) || profile.avatar
+        }));
+
+        // Continue with fallback data
+        const profilesMapFinal = new Map<string, any>();
+        allProfilesWithAvatars.forEach(profile => {
+          profilesMapFinal.set(profile.id, profile);
+        });
+
+        // Process posts with fallback profiles
+        const postsWithComments = postsData.map((post: any) => {
+          const authorProfile = profilesMapFinal.get(post.author_id);
+          const finalAvatar = authorProfile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authorProfile?.username || 'user'}`;
+
+          const postComments = (commentsByPost.get(post.id) || []).map((comment: any) => {
+            const commentAuthor = profilesMapFinal.get(comment.author_id);
+            const commentAvatar = commentAuthor?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${commentAuthor?.username || 'user'}`;
+
+            return {
+              id: comment.id,
+              author: {
+                name: commentAuthor?.name || 'Usuario',
+                handle: `@${commentAuthor?.username || 'usuario'}`,
+                avatar: commentAvatar
+              },
+              content: comment.content,
+              timestamp: formatTimestamp(comment.created_at)
+            };
+          });
+
+          return {
+            id: post.id,
+            authorId: post.author_id,
+            author: {
+              name: authorProfile?.name || 'Usuario',
+              handle: `@${authorProfile?.username || 'usuario'}`,
+              avatar: finalAvatar,
+              role: authorProfile?.role === 'admin' ? 'Admin' : 'Miembro'
+            },
+            content: post.content,
+            timestamp: formatTimestamp(post.created_at),
+            comments: postComments
+          };
+        });
+
+        setPosts(postsWithComments);
+        return;
+      }
 
       // Crear mapas para acceso rápido
+      // When using RPC function, avatars are already included in profiles
       const profilesMap = new Map<string, any>();
       (allProfiles || []).forEach(profile => {
         profilesMap.set(profile.id, profile);
-      });
-
-      const avatarsMap = new Map<string, string>();
-      (linkBioProfiles || []).forEach(lbp => {
-        if (lbp.avatar) {
-          avatarsMap.set(lbp.user_id, lbp.avatar);
-        }
       });
 
       // Agrupar comentarios por post_id
@@ -132,14 +199,15 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
       });
 
       // Combinar posts con información de autores y comentarios
+      // When using RPC function, avatars are already included in profiles
       const postsWithComments = postsData.map((post: any) => {
         const authorProfile = profilesMap.get(post.author_id);
-        const finalAvatar = avatarsMap.get(post.author_id) || authorProfile?.avatar;
+        const finalAvatar = authorProfile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authorProfile?.username || 'user'}`;
 
         // Procesar comentarios del post
         const postComments = (commentsByPost.get(post.id) || []).map((comment: any) => {
           const commentAuthor = profilesMap.get(comment.author_id);
-          const commentAvatar = avatarsMap.get(comment.author_id) || commentAuthor?.avatar;
+          const commentAvatar = commentAuthor?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${commentAuthor?.username || 'user'}`;
 
           return {
             id: comment.id,

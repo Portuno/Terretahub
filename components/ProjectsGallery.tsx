@@ -55,18 +55,74 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onViewProfile,
     try {
       setLoading(true);
       
-      // Cargar proyectos publicados con retry
+      // Optimized: Use database function that does JOIN in a single query
+      // This eliminates multiple round trips and reduces payload size significantly
       const { data: projectsData, error: projectsError } = await executeQueryWithRetry(
-        async () => await supabase
-          .from('projects')
-          .select('*')
-          .eq('status', 'published')
-          .order('created_at', { ascending: false }),
-        'load projects'
+        async () => await supabase.rpc('get_projects_with_authors'),
+        'load projects with authors'
       );
 
       if (projectsError) {
         console.error('[ProjectsGallery] Error al cargar proyectos:', projectsError);
+        // Fallback to old method if function doesn't exist yet
+        console.log('[ProjectsGallery] Falling back to old query method');
+        await loadProjectsFallback();
+        return;
+      }
+
+      if (!projectsData || projectsData.length === 0) {
+        setProjects([]);
+        return;
+      }
+
+      // Transform the data to match the expected interface
+      const projectsWithAuthors: ProjectWithAuthor[] = projectsData.map((p: any) => ({
+        id: p.id,
+        author_id: p.author_id,
+        name: p.name,
+        slogan: p.slogan,
+        description: p.description,
+        images: p.images || [],
+        video_url: p.video_url,
+        website: p.website,
+        categories: p.categories || [],
+        technologies: p.technologies || [],
+        phase: p.phase,
+        status: p.status as ProjectStatus,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+        author: {
+          name: p.author_name || 'Usuario',
+          username: p.author_username || 'usuario',
+          avatar: p.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.author_username || 'user'}`
+        }
+      }));
+
+      setProjects(projectsWithAuthors);
+    } catch (err) {
+      console.error('[ProjectsGallery] Error al cargar proyectos:', err);
+      // Fallback to old method on error
+      await loadProjectsFallback();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback method using the old approach (in case the function doesn't exist)
+  const loadProjectsFallback = async () => {
+    try {
+      // Cargar proyectos publicados con retry - solo campos necesarios
+      const { data: projectsData, error: projectsError } = await executeQueryWithRetry(
+        async () => await supabase
+          .from('projects')
+          .select('id, author_id, name, slogan, description, images, video_url, website, categories, technologies, phase, status, created_at, updated_at')
+          .eq('status', 'published')
+          .order('created_at', { ascending: false }),
+        'load projects (fallback)'
+      );
+
+      if (projectsError) {
+        console.error('[ProjectsGallery] Error al cargar proyectos (fallback):', projectsError);
         setProjects([]);
         return;
       }
@@ -141,10 +197,8 @@ export const ProjectsGallery: React.FC<ProjectsGalleryProps> = ({ onViewProfile,
 
       setProjects(projectsWithAuthors);
     } catch (err) {
-      console.error('[ProjectsGallery] Error al cargar proyectos:', err);
+      console.error('[ProjectsGallery] Error en fallback:', err);
       setProjects([]);
-    } finally {
-      setLoading(false);
     }
   };
 
