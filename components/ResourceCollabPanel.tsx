@@ -118,43 +118,21 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
       ? formatTags.filter(t => t && typeof t === 'string' && t.trim().length > 0)
       : [];
 
-    // Build payload - only include fields that have values
-    // Note: Supabase requires arrays to be sent even if empty for NOT NULL fields
-    // Omit need_types if the column doesn't exist in the database
+    // Build payload - SOLO los campos esenciales
+    // verticals, format_tags, details, y user_id (si existe)
     const payload: Record<string, any> = {
-      details: details.trim(),
-      verticals: cleanedVerticals.length > 0 ? cleanedVerticals : [],
-      format_tags: cleanedFormatTags.length > 0 ? cleanedFormatTags : []
-      // Note: need_types column may not exist in the database yet
-      // We'll omit it for now and let the database use its default value
+      details: trimmedDetails,
+      verticals: cleanedVerticals,
+      format_tags: cleanedFormatTags
     };
 
-    // Add optional fields only if they have values (don't send null/undefined)
+    // Solo agregar user_id si el usuario está registrado
     if (user?.id) {
       payload.user_id = user.id;
     }
-
-    if (placeholder && placeholder.trim()) {
-      payload.placeholder_used = placeholder.trim();
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.trim()) {
-      payload.user_agent = navigator.userAgent.trim();
-    }
-
-    // Final validation: ensure arrays are always arrays (never null/undefined)
-    if (!Array.isArray(payload.verticals)) {
-      console.warn('[ResourceCollabPanel] verticals is not an array, converting');
-      payload.verticals = [];
-    }
-    if (!Array.isArray(payload.format_tags)) {
-      console.warn('[ResourceCollabPanel] format_tags is not an array, converting');
-      payload.format_tags = [];
-    }
-    if (!Array.isArray(payload.need_types)) {
-      console.warn('[ResourceCollabPanel] need_types is not an array, converting');
-      payload.need_types = [];
-    }
+    
+    // No enviar campos opcionales que pueden no existir en la BD
+    // created_at se genera automáticamente
 
     console.log('[ResourceCollabPanel] Submitting payload:', JSON.stringify(payload, null, 2));
 
@@ -165,7 +143,6 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
         details: typeof payload.details,
         verticals: Array.isArray(payload.verticals) ? 'array' : typeof payload.verticals,
         format_tags: Array.isArray(payload.format_tags) ? 'array' : typeof payload.format_tags,
-        need_types: Array.isArray(payload.need_types) ? 'array' : typeof payload.need_types,
         hasUserId: !!payload.user_id
       });
 
