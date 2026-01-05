@@ -121,7 +121,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onC
 
       {/* Modal Content */}
       <div
-        className={`relative bg-terreta-card w-full max-w-4xl max-h-[95vh] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 ease-in-out flex flex-col ${
+        className={`relative bg-terreta-card w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 ease-in-out flex flex-col ${
           isVisible 
             ? 'scale-100 translate-y-0 opacity-100' 
             : 'scale-95 translate-y-8 opacity-0'

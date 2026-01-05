@@ -5,6 +5,39 @@ import { generateSlug, normalizeUrl } from '../lib/utils';
 import { NotFound404 } from './NotFound404';
 import { Calendar, User, Video, Image as ImageIcon, ArrowLeft, ExternalLink } from 'lucide-react';
 
+// Helper to convert YouTube/Vimeo URLs to embed format
+const getEmbedUrl = (url: string): string => {
+  if (!url) return '';
+  
+  // If already in embed format, return as is
+  if (url.includes('/embed/') || url.includes('player.vimeo.com')) {
+    return url;
+  }
+  
+  // YouTube: watch?v= format
+  if (url.includes('youtube.com/watch?v=')) {
+    return url.replace('watch?v=', 'embed/');
+  }
+  
+  // YouTube: youtu.be/ format
+  if (url.includes('youtu.be/')) {
+    const videoId = url.split('youtu.be/')[1]?.split('?')[0]?.split('&')[0];
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+  }
+  
+  // Vimeo
+  if (url.includes('vimeo.com/')) {
+    const matches = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/);
+    if (matches && matches[1]) {
+      return `https://player.vimeo.com/video/${matches[1]}`;
+    }
+  }
+  
+  return url;
+};
+
 interface ProjectFromDB {
   id: string;
   author_id: string;
@@ -203,23 +236,13 @@ export const PublicProject: React.FC = () => {
 
       {/* Card Container */}
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
-        {/* Hero Section - Dentro de la Card, sin espacios laterales */}
-        {project.video_url ? (
-          <div className="relative w-full h-56 bg-gray-900">
-            <iframe
-              src={project.video_url}
-              className="w-full h-full"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        ) : project.images && project.images.length > 0 ? (
+        {/* Hero Section - Always show image as cover, never video */}
+        {project.images && project.images.length > 0 ? (
           <div className="relative w-full h-56 bg-gray-50 overflow-hidden">
             <img
               src={project.images[currentImageIndex]}
               alt={project.name}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover"
             />
             {project.images.length > 1 && (
               <>
@@ -309,6 +332,24 @@ export const PublicProject: React.FC = () => {
           <div className="mb-5">
             <h2 className="font-serif text-lg md:text-xl text-terreta-dark mb-2.5">Sobre el Proyecto</h2>
             <p className="text-gray-700 leading-relaxed text-sm md:text-base whitespace-pre-line mb-4">{project.description}</p>
+            
+            {/* Video - Show video inside content, not as cover */}
+            {project.video_url && (
+              <div className="mb-4">
+                <h3 className="font-bold text-terreta-dark mb-2 uppercase text-xs tracking-wide">
+                  Video
+                </h3>
+                <div className="relative w-full aspect-video bg-gray-900 rounded-lg overflow-hidden">
+                  <iframe
+                    src={getEmbedUrl(project.video_url)}
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            )}
             
             {/* Website Link */}
             {project.website && (
