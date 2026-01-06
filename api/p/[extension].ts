@@ -89,6 +89,8 @@ const generateHTML = (
   <meta property="og:image:secure_url" content="${escapeHtml(image)}" />
   <meta property="og:site_name" content="Terreta Hub" />
   <meta property="og:locale" content="es_ES" />
+  <!-- Facebook App ID (opcional pero recomendado) -->
+  <!-- Si tienes una Facebook App, agrega: <meta property="fb:app_id" content="TU_APP_ID" /> -->
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
