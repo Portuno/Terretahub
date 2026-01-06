@@ -97,17 +97,9 @@ const generateHTML = (
   <meta name="twitter:description" content="${escapeHtml(description)}" />
   <meta name="twitter:image" content="${escapeHtml(image)}" />
   
-  <!-- Redirect to actual page for non-bots -->
-  <script>
-    const isBot = /bot|crawler|spider|crawling/i.test(navigator.userAgent);
-    if (!isBot) {
-      window.location.href = "${escapeHtml(url)}";
-    }
-  </script>
 </head>
 <body>
   <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
 </body>
 </html>`;
 };
@@ -165,25 +157,42 @@ export default async function handler(
     ));
   }
 
-  // Si no es un bot, servir HTML básico que redirige
+  // Si no es un bot, servir el index.html base para que React Router maneje la navegación
+  // Esto evita redirects que interfieren con los bots
   if (!isBotRequest) {
-    console.log('Not a bot, serving redirect HTML');
-    const host = req.headers.host || 'terretahub.com';
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const currentUrl = `${protocol}://${host}/p/${extension}`;
+    console.log('Not a bot, serving index.html for React Router');
+    // Intentar leer el index.html del build
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const indexHtmlPath = path.join(process.cwd(), 'dist', 'index.html');
+      
+      if (fs.existsSync(indexHtmlPath)) {
+        const indexHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
+        res.status(200);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(indexHtml);
+      }
+    } catch (error) {
+      console.warn('Could not read index.html:', error);
+    }
     
-    res.status(200);
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    const redirectHtml = `<!DOCTYPE html>
-<html>
+    // Fallback: HTML básico
+    const basicHtml = `<!DOCTYPE html>
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <script>window.location.replace('${currentUrl}');</script>
-  <noscript><meta http-equiv="refresh" content="0;url=${currentUrl}"></noscript>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terreta Hub</title>
 </head>
-<body>Redirecting...</body>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>`;
-    return res.send(redirectHtml);
+    res.status(200);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(basicHtml);
   }
 
   // Es un bot - generar meta tags dinámicos
