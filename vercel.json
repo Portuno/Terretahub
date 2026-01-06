@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/p/:extension",
-      "destination": "/index.html"
+      "destination": "/api/p/:extension"
     },
     {
       "source": "/app",
