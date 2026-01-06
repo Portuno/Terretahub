@@ -130,45 +130,40 @@ export default async function handler(
   res: VercelResponse
 ) {
   const { extension } = req.query;
-  const userAgent = req.headers['user-agent'];
+  const userAgent = req.headers['user-agent'] || '';
   
-  // Si no es un bot, servir el index.html base (sin meta tags dinámicos)
-  // React Router manejará la navegación en el cliente
+  console.log('[API] Request received:', {
+    extension,
+    userAgent: userAgent.substring(0, 100),
+    isBot: isBot(userAgent),
+    host: req.headers.host,
+    url: req.url
+  });
+  
+  // Si no es un bot, redirigir al index.html (evitar que la función sirva contenido para usuarios normales)
+  // Esto permite que React Router maneje la navegación
   if (!isBot(userAgent)) {
-    // Leer el index.html desde el build
-    try {
-      const fs = await import('fs');
-      const path = await import('path');
-      const indexHtmlPath = path.join(process.cwd(), 'dist', 'index.html');
-      
-      if (fs.existsSync(indexHtmlPath)) {
-        const indexHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
-        res.setHeader('Content-Type', 'text/html');
-        return res.send(indexHtml);
-      }
-    } catch (error) {
-      // Si no se puede leer, generar HTML básico con redirect
-      const basicHtml = `<!DOCTYPE html>
-<html lang="es">
+    // En lugar de servir el HTML, hacer un rewrite interno al index.html
+    // Pero como estamos en una función API, mejor redirigir
+    res.status(200);
+    res.setHeader('Content-Type', 'text/html');
+    
+    // Servir un HTML mínimo que redirija al cliente
+    const redirectHtml = `<!DOCTYPE html>
+<html>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Terreta Hub</title>
-  <script>
-    window.location.href = "/p/${extension}";
-  </script>
+  <script>window.location.replace('/p/${extension}');</script>
+  <noscript><meta http-equiv="refresh" content="0;url=/p/${extension}"></noscript>
 </head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+<body>Redirecting...</body>
 </html>`;
-      res.setHeader('Content-Type', 'text/html');
-      return res.send(basicHtml);
-    }
+    return res.send(redirectHtml);
   }
   
-  // Es un bot, generar meta tags dinámicos
+  // Es un bot - generar meta tags dinámicos
+  console.log('[API] Bot detected, generating dynamic meta tags');
+  
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
@@ -238,13 +233,14 @@ export default async function handler(
     const html = generateHTML(profileTitle, profileDescription, avatarUrl, currentUrl);
     
     // Headers importantes para evitar redirects y asegurar que los bots vean el contenido
+    res.status(200); // Asegurar código 200 OK (no 206 Partial Content)
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
-    res.setHeader('X-Robots-Tag', 'noindex, nofollow'); // Solo para bots, no indexar esta versión
     
     console.log('[API] Generated HTML for bot:', {
       extension,
       title: profileTitle,
+      description: profileDescription.substring(0, 50),
       image: avatarUrl,
       url: currentUrl
     });
@@ -264,7 +260,8 @@ export default async function handler(
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const currentUrl = `${protocol}://${host}/p/${extension}`;
     
-    res.setHeader('Content-Type', 'text/html');
+    res.status(200);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(generateHTML(defaultTitle, defaultDescription, defaultImage, currentUrl));
   }
 }

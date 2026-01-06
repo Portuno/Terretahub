@@ -17,6 +17,11 @@
       "destination": "/index.html"
     }
   ],
+  "functions": {
+    "api/p/[extension].ts": {
+      "maxDuration": 10
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
