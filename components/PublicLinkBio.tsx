@@ -5,6 +5,7 @@ import { LinkBioProfile } from '../types';
 import { ProfileRenderer } from './ProfileEditor';
 import { NotFound404 } from './NotFound404';
 import { trackProfileView } from '../lib/analytics';
+import { useDynamicMetaTags } from '../hooks/useDynamicMetaTags';
 
 export const PublicLinkBio: React.FC = () => {
   const { extension } = useParams<{ extension: string }>();
@@ -295,6 +296,7 @@ export const PublicLinkBio: React.FC = () => {
         });
         
         setProfile(formattedProfile);
+        setProfileUserId(data.user_id);
         setLoading(false);
         isLoadingRef.current = false;
         
@@ -339,6 +341,58 @@ export const PublicLinkBio: React.FC = () => {
       isLoadingRef.current = false;
     };
   }, [extension]);
+
+  // Función helper para obtener URL pública del avatar (no base64)
+  const getPublicAvatarUrl = (avatar: string | null | undefined, userId: string | null): string => {
+    if (!avatar) {
+      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId || 'user'}`;
+    }
+
+    // Si es base64, no es útil para Open Graph (los bots no pueden acceder)
+    if (avatar.startsWith('data:image')) {
+      // Intentar obtener de Storage si tenemos userId
+      if (userId) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(`${userId}/avatar.jpg`);
+        return publicUrl;
+      }
+      // Si no hay userId, usar default
+      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId || 'user'}`;
+    }
+
+    // Si es una URL válida, usarla directamente
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+      return avatar;
+    }
+
+    // Si es una ruta relativa o algo inesperado, intentar Storage
+    if (userId) {
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(`${userId}/avatar.jpg`);
+      return publicUrl;
+    }
+
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId || 'user'}`;
+  };
+
+  // Actualizar meta tags dinámicamente cuando el perfil se carga
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const avatarUrl = profile ? getPublicAvatarUrl(profile.avatar, profileUserId) : '';
+  const profileTitle = profile 
+    ? `${profile.displayName || profile.username} | Terreta Hub`
+    : 'Terreta Hub';
+  const profileDescription = profile?.bio 
+    ? profile.bio.substring(0, 160) // Limitar a 160 caracteres para meta description
+    : `Perfil de ${profile?.displayName || profile?.username || 'usuario'} en Terreta Hub`;
+
+  useDynamicMetaTags({
+    title: profile ? profileTitle : undefined,
+    description: profile ? profileDescription : undefined,
+    image: profile && avatarUrl ? avatarUrl : undefined,
+    url: currentUrl || undefined
+  });
 
   if (loading) {
     return (
