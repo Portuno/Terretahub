@@ -160,30 +160,13 @@ export default async function handler(
     ));
   }
 
-  // Si no es un bot, servir el index.html base para que React Router maneje la navegación
-  // Esto evita redirects que interfieren con los bots
+  // Si no es un bot, esta función NO debería ejecutarse porque el rewrite
+  // en vercel.json solo debería activarse para bots
+  // Pero por seguridad, si llega aquí un usuario normal, devolver 404
+  // para que Vercel use el rewrite catch-all que sirve el index.html
   if (!isBotRequest) {
-    console.log('Not a bot, serving index.html for React Router');
-    // Intentar leer el index.html del build
-    try {
-      const fs = await import('fs');
-      const path = await import('path');
-      const indexHtmlPath = path.join(process.cwd(), 'dist', 'index.html');
-      
-      if (fs.existsSync(indexHtmlPath)) {
-        const indexHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
-        res.status(200);
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.send(indexHtml);
-      }
-    } catch (error) {
-      console.warn('Could not read index.html:', error);
-    }
-    
-    // Fallback: Redirigir al index.html para que React Router maneje la navegación
-    // En lugar de servir HTML básico, mejor redirigir para evitar problemas con módulos
-    res.status(307);
-    res.setHeader('Location', `/p/${extension}`);
+    console.log('Not a bot - this should not happen, returning 404 to trigger fallback');
+    res.status(404);
     return res.end();
   }
 

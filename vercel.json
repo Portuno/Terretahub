@@ -2,7 +2,18 @@
   "rewrites": [
     {
       "source": "/p/:extension",
-      "destination": "/api/p/:extension"
+      "destination": "/api/p/:extension",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|Slackbot|DiscordBot|SkypeUriPreview|Googlebot|bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|facebot|ia_archiver).*"
+        }
+      ]
+    },
+    {
+      "source": "/p/:extension",
+      "destination": "/index.html"
     },
     {
       "source": "/app",
