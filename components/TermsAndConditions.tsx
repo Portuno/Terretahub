@@ -10,7 +10,7 @@ export const TermsAndConditions: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="text-terreta-accent hover:text-terreta-dark transition-colors mb-4 text-sm font-semibold"
           >
             ← Volver
