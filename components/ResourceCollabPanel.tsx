@@ -1,9 +1,235 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthUser } from '../types';
-import { HelpCircle, Lightbulb } from 'lucide-react';
+import { Download, Flower2, HandHeart, Sprout, HelpCircle, Lightbulb, User, MessageSquare, X, Send, Upload, Package } from 'lucide-react';
 
 type SubmissionState = 'idle' | 'loading' | 'success' | 'error';
+
+interface Resource {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  file_url?: string;
+  download_count: number;
+  votes_count: number;
+  author: {
+    id: string;
+    name: string;
+    avatar: string;
+    username: string;
+  };
+  created_at: string;
+  hasUserVoted?: boolean;
+}
+
+interface ResourceNeedComment {
+  id: string;
+  content: string;
+  is_help_offer: boolean;
+  created_at: string;
+  author: {
+    id: string;
+    name: string;
+    avatar: string;
+    username: string;
+  };
+}
+
+interface ResourceNeed {
+  id: string;
+  details: string;
+  verticals: string[];
+  format_tags: string[];
+  created_at: string;
+  user_id?: string;
+  author?: {
+    name: string;
+    avatar: string;
+  };
+  comments?: ResourceNeedComment[];
+}
+
+interface ResourceCollabPanelProps {
+  user?: AuthUser | null;
+}
+
+// Componente: Tarjeta de Recurso (L'Almoina Card)
+const AlmoinaCard: React.FC<{ resource: Resource; currentUser?: AuthUser | null; onVote: (resourceId: string) => void; onDownload: (resourceId: string) => void }> = ({ 
+  resource, 
+  currentUser, 
+  onVote, 
+  onDownload 
+}) => {
+  const handleVote = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentUser) return;
+    onVote(resource.id);
+  };
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDownload(resource.id);
+  };
+
+  return (
+    <div className="bg-terreta-card rounded-2xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all duration-300 border border-terreta-border/50">
+      {/* Categoría */}
+      <div className="mb-3">
+        <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-terreta-bg/50 text-terreta-accent border border-terreta-border/50">
+          {resource.category}
+        </span>
+      </div>
+
+      {/* Título */}
+      <h3 className="font-serif text-lg font-bold text-terreta-dark mb-2 leading-tight">
+        {resource.title}
+      </h3>
+
+      {/* Descripción */}
+      {resource.description && (
+        <p className="text-sm text-terreta-secondary mb-4 line-clamp-2">
+          {resource.description}
+        </p>
+      )}
+
+      {/* Footer: Autor y Acciones */}
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-terreta-border/30">
+        {/* Autor con Avatar */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full overflow-hidden border border-terreta-border/50">
+            <img 
+              src={resource.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${resource.author.username}`} 
+              alt={resource.author.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <span className="text-xs text-terreta-secondary font-medium">
+            {resource.author.name}
+          </span>
+        </div>
+
+        {/* Acciones: Voto y Descarga */}
+        <div className="flex items-center gap-3">
+          {/* Sistema de Votación con Clavel */}
+          <button
+            onClick={handleVote}
+            disabled={!currentUser}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all ${
+              resource.hasUserVoted
+                ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                : 'bg-terreta-bg/50 text-terreta-secondary hover:bg-rose-50 hover:text-rose-600 border border-terreta-border/50 hover:border-rose-200'
+            } ${!currentUser ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            aria-label={`Votar por ${resource.title}`}
+          >
+            <Flower2 size={14} className={resource.hasUserVoted ? 'fill-current' : ''} />
+            <span className="text-xs font-semibold">{resource.votes_count}</span>
+          </button>
+
+          {/* Botón de Descarga */}
+          {resource.file_url && (
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-terreta-accent/10 text-terreta-accent hover:bg-terreta-accent hover:text-white transition-all border border-terreta-accent/20"
+              aria-label={`Descargar ${resource.title}`}
+            >
+              <Download size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente: Tablón de Solicitudes
+const TablonSolicitudes: React.FC<{ 
+  requests: ResourceNeed[]; 
+  currentUser?: AuthUser | null;
+  onRequestClick: (request: ResourceNeed) => void;
+}> = ({ requests, currentUser, onRequestClick }) => {
+  const formatRequestText = (details: string) => {
+    // Extraer las primeras palabras para mostrar "Necesito [X]..."
+    const words = details.split(' ');
+    if (words.length > 8) {
+      return `Necesito ${words.slice(0, 8).join(' ')}...`;
+    }
+    return `Necesito ${details}`;
+  };
+
+  return (
+    <div className="space-y-3">
+      {requests.length === 0 ? (
+        <div className="text-center py-8 text-terreta-secondary text-sm">
+          <p>Aún no hay solicitudes</p>
+        </div>
+      ) : (
+        requests.map((request) => (
+          <div 
+            key={request.id} 
+            onClick={() => onRequestClick(request)}
+            className="bg-terreta-card rounded-xl p-4 shadow-[0_1px_4px_rgba(0,0,0,0.05)] border border-terreta-border/50 cursor-pointer hover:shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:border-terreta-accent/30 transition-all"
+          >
+            <p className="text-sm text-terreta-dark mb-3 leading-relaxed">
+              {formatRequestText(request.details)}
+            </p>
+            <div className="flex items-center justify-between">
+              {request.author && (
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full overflow-hidden border border-terreta-border/50">
+                    <img 
+                      src={request.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${request.author.name}`} 
+                      alt={request.author.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <span className="text-xs text-terreta-secondary">
+                    {request.author.name}
+                  </span>
+                </div>
+              )}
+              {request.comments && request.comments.length > 0 && (
+                <div className="flex items-center gap-1 text-xs text-terreta-secondary">
+                  <MessageSquare size={12} />
+                  <span>{request.comments.length}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+
+export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }) => {
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [requests, setRequests] = useState<ResourceNeed[]>([]);
+  const [loadingResources, setLoadingResources] = useState(true);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [showAportarModal, setShowAportarModal] = useState(false);
+  const [showPedirAyudaModal, setShowPedirAyudaModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<ResourceNeed | null>(null);
+  
+  // Estados para el modal de Aportar Recurso
+  const [resourceTitle, setResourceTitle] = useState('');
+  const [resourceDescription, setResourceDescription] = useState('');
+  const [resourceCategory, setResourceCategory] = useState('');
+  const [resourceFile, setResourceFile] = useState<File | null>(null);
+  const [resourceFileUrl, setResourceFileUrl] = useState('');
+  const [uploadingResource, setUploadingResource] = useState(false);
+  const [resourceSubmitState, setResourceSubmitState] = useState<SubmissionState>('idle');
+  const [requestComments, setRequestComments] = useState<ResourceNeedComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [isHelpOffer, setIsHelpOffer] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [formatTags, setFormatTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [selectedVerticals, setSelectedVerticals] = useState<string[]>([]);
+  const [details, setDetails] = useState('');
+  const [submitState, setSubmitState] = useState<SubmissionState>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
 const VERTICALS = [
     'Tecnología',
@@ -25,27 +251,325 @@ const PLACEHOLDERS = [
   'Cuéntanos con detalle tu necesidad: ¿Buscas la guía definitiva de pitch deck, un mentor de UX o información sobre DeFi? Si tienes el nombre de un recurso que te encanta, compártelo. ¡Tu aporte prioriza nuestro trabajo!'
 ];
 
-interface ResourceCollabPanelProps {
-  user?: AuthUser | null;
-}
-
-export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }) => {
-  const [formatTags, setFormatTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
-  const [selectedVerticals, setSelectedVerticals] = useState<string[]>([]);
-  const [details, setDetails] = useState('');
-  const [placeholder, setPlaceholder] = useState<string>(PLACEHOLDERS[0]);
-  const [submitState, setSubmitState] = useState<SubmissionState>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
-
+  // Cargar recursos
   useEffect(() => {
-    rotatePlaceholder();
-  }, []);
+    const loadResources = async () => {
+      try {
+        setLoadingResources(true);
+        const { data, error } = await supabase
+          .from('resources')
+          .select(`
+            *,
+            author:profiles!resources_author_id_fkey(id, name, avatar, username)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-  const rotatePlaceholder = () => {
-    const options = PLACEHOLDERS.filter((item) => item !== placeholder);
-    const next = options[Math.floor(Math.random() * options.length)] || PLACEHOLDERS[0];
-    setPlaceholder(next);
+        if (error) {
+          console.error('Error loading resources:', error);
+          // Si la tabla no existe aún, simplemente mostrar lista vacía
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            setResources([]);
+            setLoadingResources(false);
+            return;
+          }
+          return;
+        }
+
+        // Cargar votos del usuario si está autenticado
+        if (user?.id && data) {
+          const resourceIds = data.map(r => r.id);
+          const { data: votes } = await supabase
+            .from('resource_votes')
+            .select('resource_id')
+            .eq('user_id', user.id)
+            .in('resource_id', resourceIds);
+
+          const votedResourceIds = new Set(votes?.map(v => v.resource_id) || []);
+
+          const resourcesWithVotes = data.map((resource: any) => ({
+            ...resource,
+            author: {
+              id: resource.author.id,
+              name: resource.author.name,
+              avatar: resource.author.avatar,
+              username: resource.author.username
+            },
+            hasUserVoted: votedResourceIds.has(resource.id)
+          }));
+
+          setResources(resourcesWithVotes);
+        } else {
+          const resourcesWithAuthor = data?.map((resource: any) => ({
+            ...resource,
+            author: {
+              id: resource.author.id,
+              name: resource.author.name,
+              avatar: resource.author.avatar,
+              username: resource.author.username
+            },
+            hasUserVoted: false
+          })) || [];
+          setResources(resourcesWithAuthor);
+        }
+      } catch (err) {
+        console.error('Exception loading resources:', err);
+      } finally {
+        setLoadingResources(false);
+      }
+    };
+
+    loadResources();
+  }, [user]);
+
+  // Cargar solicitudes
+  useEffect(() => {
+    const loadRequests = async () => {
+      try {
+        setLoadingRequests(true);
+        const { data, error } = await supabase
+          .from('resource_needs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error('Error loading requests:', error);
+          return;
+        }
+
+        // Cargar información de autores si tienen user_id
+        if (data) {
+          const userIds = data.filter(r => r.user_id).map(r => r.user_id);
+          if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('id, name, avatar')
+              .in('id', userIds);
+
+            const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+            // Cargar comentarios para cada solicitud
+            const requestIds = data.map(r => r.id);
+            const { data: commentsData } = await supabase
+              .from('resource_needs_comments')
+              .select(`
+                *,
+                author:profiles!resource_needs_comments_author_id_fkey(id, name, avatar, username)
+              `)
+              .in('resource_need_id', requestIds)
+              .order('created_at', { ascending: true });
+
+            const commentsByRequest = new Map<string, ResourceNeedComment[]>();
+            if (commentsData) {
+              commentsData.forEach((comment: any) => {
+                const requestId = comment.resource_need_id;
+                if (!commentsByRequest.has(requestId)) {
+                  commentsByRequest.set(requestId, []);
+                }
+                commentsByRequest.get(requestId)!.push({
+                  id: comment.id,
+                  content: comment.content,
+                  is_help_offer: comment.is_help_offer,
+                  created_at: comment.created_at,
+                  author: {
+                    id: comment.author.id,
+                    name: comment.author.name,
+                    avatar: comment.author.avatar,
+                    username: comment.author.username
+                  }
+                });
+              });
+            }
+
+            const requestsWithAuthors = data.map((request: any) => ({
+              ...request,
+              author: request.user_id ? profilesMap.get(request.user_id) : null,
+              comments: commentsByRequest.get(request.id) || []
+            }));
+
+            setRequests(requestsWithAuthors);
+          } else {
+            setRequests(data);
+          }
+        }
+      } catch (err) {
+        console.error('Exception loading requests:', err);
+      } finally {
+        setLoadingRequests(false);
+      }
+    };
+
+    loadRequests();
+  }, [user]);
+
+  const handleVote = async (resourceId: string) => {
+    if (!user) return;
+
+    const resource = resources.find(r => r.id === resourceId);
+    if (!resource) return;
+
+    try {
+      if (resource.hasUserVoted) {
+        // Quitar voto
+        const { error } = await supabase
+          .from('resource_votes')
+          .delete()
+          .eq('resource_id', resourceId)
+          .eq('user_id', user.id);
+
+        if (!error) {
+          setResources(prev => prev.map(r => 
+            r.id === resourceId 
+              ? { ...r, votes_count: Math.max(0, r.votes_count - 1), hasUserVoted: false }
+              : r
+          ));
+        }
+      } else {
+        // Añadir voto
+        const { error } = await supabase
+          .from('resource_votes')
+          .insert({ resource_id: resourceId, user_id: user.id });
+
+        if (!error) {
+          setResources(prev => prev.map(r => 
+            r.id === resourceId 
+              ? { ...r, votes_count: r.votes_count + 1, hasUserVoted: true }
+              : r
+          ));
+        }
+      }
+    } catch (err) {
+      console.error('Error voting:', err);
+    }
+  };
+
+  const handleDownload = async (resourceId: string) => {
+    const resource = resources.find(r => r.id === resourceId);
+    if (!resource?.file_url) return;
+
+    // Incrementar contador de descargas
+    try {
+      const { error } = await supabase.rpc('increment_download_count', { resource_id: resourceId });
+      if (!error) {
+        setResources(prev => prev.map(r => 
+          r.id === resourceId 
+            ? { ...r, download_count: r.download_count + 1 }
+            : r
+        ));
+      }
+    } catch (err) {
+      console.error('Error updating download count:', err);
+      // Continuar con la descarga aunque falle el contador
+    }
+
+    // Abrir en nueva pestaña
+    window.open(resource.file_url, '_blank');
+  };
+
+  const handleRequestClick = async (request: ResourceNeed) => {
+    setSelectedRequest(request);
+    setRequestComments(request.comments || []);
+    setIsHelpOffer(false);
+    setCommentText('');
+    
+    // Cargar comentarios actualizados
+    await loadRequestComments(request.id);
+  };
+
+  const loadRequestComments = async (requestId: string) => {
+    try {
+      setLoadingComments(true);
+      const { data, error } = await supabase
+        .from('resource_needs_comments')
+        .select(`
+          *,
+          author:profiles!resource_needs_comments_author_id_fkey(id, name, avatar, username)
+        `)
+        .eq('resource_need_id', requestId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading comments:', error);
+        return;
+      }
+
+      if (data) {
+        const comments: ResourceNeedComment[] = data.map((comment: any) => ({
+          id: comment.id,
+          content: comment.content,
+          is_help_offer: comment.is_help_offer,
+          created_at: comment.created_at,
+          author: {
+            id: comment.author.id,
+            name: comment.author.name,
+            avatar: comment.author.avatar,
+            username: comment.author.username
+          }
+        }));
+        setRequestComments(comments);
+      }
+    } catch (err) {
+      console.error('Exception loading comments:', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleSubmitComment = async () => {
+    if (!user || !selectedRequest || !commentText.trim()) return;
+
+    try {
+      setSubmittingComment(true);
+      const { data, error } = await supabase
+        .from('resource_needs_comments')
+        .insert({
+          resource_need_id: selectedRequest.id,
+          author_id: user.id,
+          content: commentText.trim(),
+          is_help_offer: isHelpOffer
+        })
+        .select(`
+          *,
+          author:profiles!resource_needs_comments_author_id_fkey(id, name, avatar, username)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error submitting comment:', error);
+        return;
+      }
+
+      if (data) {
+        const newComment: ResourceNeedComment = {
+          id: data.id,
+          content: data.content,
+          is_help_offer: data.is_help_offer,
+          created_at: data.created_at,
+          author: {
+            id: data.author.id,
+            name: data.author.name,
+            avatar: data.author.avatar,
+            username: data.author.username
+          }
+        };
+
+        setRequestComments(prev => [...prev, newComment]);
+        setCommentText('');
+        setIsHelpOffer(false);
+
+        // Actualizar la solicitud en la lista
+        setRequests(prev => prev.map(req => 
+          req.id === selectedRequest.id 
+            ? { ...req, comments: [...(req.comments || []), newComment] }
+            : req
+        ));
+      }
+    } catch (err) {
+      console.error('Exception submitting comment:', err);
+    } finally {
+      setSubmittingComment(false);
+    }
   };
 
   const toggleItem = (value: string, list: string[], setter: (next: string[]) => void) => {
@@ -77,13 +601,131 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
     return !hasDetails || selectedVerticals.length === 0;
   }, [details, selectedVerticals]);
 
+  const handleSubmitResource = async () => {
+    if (!user || !resourceTitle.trim() || !resourceCategory) return;
+
+    setResourceSubmitState('loading');
+    setUploadingResource(true);
+    setErrorMessage('');
+
+    try {
+      let finalFileUrl = resourceFileUrl.trim();
+
+      // Si hay un archivo, intentar subirlo a storage
+      // Nota: Si el bucket 'resources' no existe, el usuario puede usar una URL externa
+      if (resourceFile) {
+        try {
+          const filePath = `${user.id}/${Date.now()}_${resourceFile.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from('resources')
+            .upload(filePath, resourceFile, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) {
+            // Si el bucket no existe, sugerir usar URL externa
+            if (uploadError.message?.includes('Bucket') || uploadError.message?.includes('not found')) {
+              setErrorMessage('El bucket de recursos no está configurado. Por favor, usa una URL externa o configura el bucket en Supabase.');
+              setResourceSubmitState('error');
+              setUploadingResource(false);
+              setTimeout(() => setResourceSubmitState('idle'), 5000);
+              return;
+            }
+            throw uploadError;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('resources')
+            .getPublicUrl(filePath);
+
+          finalFileUrl = publicUrl;
+        } catch (uploadError: any) {
+          console.error('Error uploading file:', uploadError);
+          setErrorMessage('Error al subir el archivo. Puedes usar una URL externa en su lugar.');
+          setResourceSubmitState('error');
+          setUploadingResource(false);
+          setTimeout(() => setResourceSubmitState('idle'), 5000);
+          return;
+        }
+      }
+
+      // Crear el recurso
+      const { data, error } = await supabase
+        .from('resources')
+        .insert({
+          author_id: user.id,
+          title: resourceTitle.trim(),
+          description: resourceDescription.trim() || null,
+          category: resourceCategory,
+          file_url: finalFileUrl || null
+        })
+        .select(`
+          *,
+          author:profiles!resources_author_id_fkey(id, name, avatar, username)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error creating resource:', error);
+        setErrorMessage('No se pudo compartir el recurso. Intenta nuevamente.');
+        setResourceSubmitState('error');
+        setUploadingResource(false);
+        setTimeout(() => setResourceSubmitState('idle'), 3000);
+        return;
+      }
+
+      // Agregar el recurso a la lista
+      if (data) {
+        const newResource: Resource = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          category: data.category,
+          file_url: data.file_url,
+          download_count: data.download_count,
+          votes_count: data.votes_count,
+          author: {
+            id: data.author.id,
+            name: data.author.name,
+            avatar: data.author.avatar,
+            username: data.author.username
+          },
+          created_at: data.created_at,
+          hasUserVoted: false
+        };
+
+        setResources(prev => [newResource, ...prev]);
+      }
+
+      setResourceSubmitState('success');
+      setResourceTitle('');
+      setResourceDescription('');
+      setResourceCategory('');
+      setResourceFile(null);
+      setResourceFileUrl('');
+
+      // Cerrar modal después de 1 segundo
+      setTimeout(() => {
+        setShowAportarModal(false);
+        setResourceSubmitState('idle');
+      }, 1000);
+    } catch (err: any) {
+      console.error('Exception creating resource:', err);
+      setErrorMessage(err?.message || 'No se pudo compartir el recurso. Intenta nuevamente.');
+      setResourceSubmitState('error');
+    } finally {
+      setUploadingResource(false);
+      setTimeout(() => setResourceSubmitState('idle'), 3000);
+    }
+  };
+
   const handleSubmit = async () => {
     if (isSubmitDisabled || submitState === 'loading') return;
 
     setSubmitState('loading');
     setErrorMessage('');
 
-    // Validate required fields
     const trimmedDetails = details.trim();
     if (!trimmedDetails || trimmedDetails.length <= 12) {
       setSubmitState('error');
@@ -92,7 +734,6 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
       return;
     }
 
-    // Validate details length (PostgreSQL TEXT can be very long, but let's set a reasonable limit)
     if (trimmedDetails.length > 10000) {
       setSubmitState('error');
       setErrorMessage('El texto es demasiado largo. Por favor, reduce la descripción a menos de 10,000 caracteres.');
@@ -107,9 +748,6 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
       return;
     }
 
-    // Build payload - ensure arrays are properly formatted for Supabase
-    // Supabase expects arrays as JavaScript arrays, which it converts to PostgreSQL arrays
-    // Filter out empty strings and ensure arrays are never null
     const cleanedVerticals = Array.isArray(selectedVerticals) 
       ? selectedVerticals.filter(v => v && typeof v === 'string' && v.trim().length > 0)
       : [];
@@ -118,106 +756,47 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
       ? formatTags.filter(t => t && typeof t === 'string' && t.trim().length > 0)
       : [];
 
-    // Build payload - SOLO los campos esenciales
-    // verticals, format_tags, details, y user_id (si existe)
     const payload: Record<string, any> = {
       details: trimmedDetails,
       verticals: cleanedVerticals,
       format_tags: cleanedFormatTags
     };
 
-    // Solo agregar user_id si el usuario está registrado
     if (user?.id) {
       payload.user_id = user.id;
     }
-    
-    // No enviar campos opcionales que pueden no existir en la BD
-    // created_at se genera automáticamente
-
-    console.log('[ResourceCollabPanel] Submitting payload:', JSON.stringify(payload, null, 2));
 
     try {
-      // Log the exact payload being sent
-      console.log('[ResourceCollabPanel] Payload before insert:', JSON.stringify(payload, null, 2));
-      console.log('[ResourceCollabPanel] Payload types:', {
-        details: typeof payload.details,
-        verticals: Array.isArray(payload.verticals) ? 'array' : typeof payload.verticals,
-        format_tags: Array.isArray(payload.format_tags) ? 'array' : typeof payload.format_tags,
-        hasUserId: !!payload.user_id
-      });
-
       const { data, error } = await supabase
         .from('resource_needs')
         .insert(payload)
         .select();
       
       if (error) {
-        // Log detailed error information with full error object
-        // Expand all properties of the error object
-        const errorDetails: any = {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        };
-        
-        // Try to get additional properties
-        try {
-          if ((error as any).status) errorDetails.status = (error as any).status;
-          if ((error as any).statusText) errorDetails.statusText = (error as any).statusText;
-          if ((error as any).statusCode) errorDetails.statusCode = (error as any).statusCode;
-        } catch (e) {
-          // Ignore if properties don't exist
-        }
-        
-        // Log the error in multiple ways to ensure we see it
-        console.error('[ResourceCollabPanel] ========== ERROR START ==========');
-        console.error('[ResourceCollabPanel] Error object:', error);
-        console.error('[ResourceCollabPanel] Error details:', errorDetails);
-        console.error('[ResourceCollabPanel] Error as JSON:', JSON.stringify(error, null, 2));
-        console.error('[ResourceCollabPanel] Payload that failed:', JSON.stringify(payload, null, 2));
-        console.error('[ResourceCollabPanel] ========== ERROR END ==========');
-        
-        // Provide more specific error messages based on error code
-        let userMessage = 'No se pudo enviar tu necesidad. Por favor, intenta nuevamente.';
-        
-        // Check for specific error codes
-        const errorCode = error.code || (error as any).code;
-        const errorMessage = error.message || (error as any).message || '';
-        
-        if (errorCode === '23502') {
-          userMessage = 'Faltan campos requeridos. Por favor, completa todos los campos necesarios.';
-        } else if (errorCode === '23505') {
-          userMessage = 'Esta necesidad ya fue enviada anteriormente.';
-        } else if (errorCode === '42501' || errorCode === 'PGRST301') {
-          userMessage = 'No tienes permisos para realizar esta acción.';
-        } else if (errorCode === 'PGRST116') {
-          userMessage = 'No se encontró el recurso solicitado.';
-        } else if (errorMessage) {
-          userMessage = `Error: ${errorMessage}`;
-        }
-        
-        // Also log the error code and message for debugging
-        console.error('[ResourceCollabPanel] Error code:', errorCode);
-        console.error('[ResourceCollabPanel] Error message:', errorMessage);
-        
+        console.error('Error submitting request:', error);
         setSubmitState('error');
-        setErrorMessage(userMessage);
+        setErrorMessage('No se pudo enviar tu necesidad. Por favor, intenta nuevamente.');
         return;
       }
 
-      console.log('[ResourceCollabPanel] Resource need created successfully:', data);
       setSubmitState('success');
       setDetails('');
       setSelectedVerticals([]);
       setFormatTags([]);
-      rotatePlaceholder();
+      setShowPedirAyudaModal(false);
+      
+      // Recargar solicitudes
+      const { data: newRequests } = await supabase
+        .from('resource_needs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (newRequests) {
+        setRequests(newRequests);
+      }
     } catch (err: any) {
-      console.error('[ResourceCollabPanel] Exception during submit:', {
-        message: err?.message,
-        stack: err?.stack,
-        fullError: err
-      });
+      console.error('Exception during submit:', err);
       setSubmitState('error');
       setErrorMessage(err?.message || 'No se pudo enviar tu necesidad. Por favor, intenta nuevamente.');
     } finally {
@@ -225,87 +804,334 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
     }
   };
 
-  const badgeBase =
-    'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2';
-  const badgeActive = 'border-emerald-600 bg-emerald-50 text-emerald-700 shadow-sm';
-  const badgeIdle = 'border-amber-200 text-slate-700 hover:border-emerald-500 bg-white/70';
-
   return (
-    <section className="w-full h-full flex flex-col gap-2 rounded-2xl bg-terreta-card border border-terreta-border p-3 shadow-lg flex-grow min-h-[calc(100vh-4rem)]">
-      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-1 shrink-0">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-terreta-accent mb-1">
-            Recursos (En construcción)
-          </p>
-          <h2 className="text-3xl font-serif font-bold text-terreta-dark leading-tight">
-            Panel de Colaboración
-          </h2>
-        </div>
-        <p className="text-sm text-terreta-secondary max-w-xl text-right md:text-right hidden md:block pb-2">
-          Siembra tu necesidad aquí para priorizar el contenido.
+    <div className="w-full h-full flex flex-col gap-4 relative">
+      {/* Header */}
+      <header className="shrink-0">
+        <h1 className="text-4xl font-serif font-bold text-terreta-dark leading-tight mb-2">
+          L'Almoina
+        </h1>
+        <p className="text-base text-terreta-secondary font-medium">
+          Donde el talento se comparte y la comunidad crece
         </p>
       </header>
 
-      <div className="flex-1 flex flex-col gap-3 rounded-xl bg-terreta-bg/30 p-3 shadow-inner border border-terreta-border overflow-y-auto">
-        
-        {/* Encapsulated Options: Verticals */}
-        <div className="bg-terreta-card/80 rounded-xl p-4 shadow-sm border border-terreta-border/50 shrink-0">
-            <div className="flex flex-col gap-3 relative">
-              <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-terreta-dark uppercase tracking-wide">1. Vertical de Interés</p>
-                  <div className="group relative">
-                      <HelpCircle size={14} className="text-terreta-gold cursor-help" />
-                      <div className="absolute left-full top-0 ml-2 w-48 bg-terreta-sidebar text-terreta-dark text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity border border-terreta-border">
-                          Elige el sector al que pertenece tu consulta.
-                      </div>
-                  </div>
+      {/* Layout 70/30 */}
+      <div className="flex-1 flex gap-4 min-h-0">
+        {/* Columna Izquierda (70%): Explorar Recursos - Grid Masonry */}
+        <div className="flex-[0.7] flex flex-col min-w-0">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xl font-serif font-semibold text-terreta-dark">Explorar</h2>
+            <button
+              onClick={() => setShowAportarModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-terreta-accent text-white rounded-lg font-bold hover:brightness-90 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+              aria-label="Aportar Recurso"
+            >
+              <Package size={18} />
+              <span>Aportar Recurso</span>
+            </button>
+          </div>
+          
+          {loadingResources ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-terreta-accent"></div>
+                <p className="mt-4 text-terreta-secondary text-sm">Cargando recursos...</p>
               </div>
-              <div className="w-8 h-0.5 bg-terreta-border rounded-full"></div>
+            </div>
+          ) : resources.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center py-12">
+                <p className="text-terreta-secondary mb-4">Aún no hay recursos compartidos</p>
+                <p className="text-sm text-terreta-secondary/70">Sé el primero en compartir tu talento</p>
+              </div>
+                      </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto pr-2">
+              {/* Grid Masonry usando columnas CSS */}
+              <div className="columns-1 md:columns-2 gap-4">
+                {resources.map((resource) => (
+                  <div key={resource.id} className="break-inside-avoid mb-4">
+                    <AlmoinaCard 
+                      resource={resource} 
+                      currentUser={user}
+                      onVote={handleVote}
+                      onDownload={handleDownload}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Columna Derecha (30%): Solicitudes de la Comunidad */}
+        <div className="flex-[0.3] flex flex-col min-w-0 bg-terreta-card rounded-2xl p-4 border border-terreta-border shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+          <div className="mb-4 shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-serif font-semibold text-terreta-dark">
+                Solicitudes de la Comunidad
+              </h2>
+              <button
+                onClick={() => setShowPedirAyudaModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm hover:shadow-md"
+                aria-label="Pedir Ayuda"
+              >
+                <HandHeart size={14} />
+                <span>Pedir Ayuda</span>
+              </button>
+            </div>
+            <p className="text-xs text-terreta-secondary">
+              Lo que la comunidad necesita
+            </p>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto">
+            {loadingRequests ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-terreta-accent"></div>
+              </div>
+            ) : (
+              <TablonSolicitudes 
+                requests={requests} 
+                currentUser={user}
+                onRequestClick={handleRequestClick}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modal: Aportar Recurso */}
+      {showAportarModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-terreta-card rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-terreta-border shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-terreta-accent/10 flex items-center justify-center">
+                  <Package className="text-terreta-accent" size={20} />
+                </div>
+                <h2 className="text-2xl font-serif font-bold text-terreta-dark">Aportar Recurso</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAportarModal(false);
+                  setResourceTitle('');
+                  setResourceDescription('');
+                  setResourceCategory('');
+                  setResourceFile(null);
+                  setResourceFileUrl('');
+                  setResourceSubmitState('idle');
+                }}
+                className="text-terreta-secondary hover:text-terreta-dark transition-colors p-1 rounded-lg hover:bg-terreta-bg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Título */}
+              <div>
+                <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2 block">
+                  Título del Recurso <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={resourceTitle}
+                  onChange={(e) => setResourceTitle(e.target.value)}
+                  placeholder="Ej: Guía de React Hooks, Plantilla de Pitch Deck..."
+                  className="w-full rounded-xl border border-terreta-border bg-terreta-card/50 px-4 py-3 text-base text-terreta-dark placeholder-terreta-secondary/40 focus:border-terreta-accent focus:bg-terreta-card transition-all outline-none"
+                />
+              </div>
+
+              {/* Descripción */}
+              <div>
+                <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2 block">
+                  Descripción
+                </label>
+                <textarea
+                  value={resourceDescription}
+                  onChange={(e) => setResourceDescription(e.target.value)}
+                  placeholder="Describe brevemente qué contiene este recurso y cómo puede ayudar a la comunidad..."
+                  className="w-full rounded-xl border border-terreta-border bg-terreta-card/50 px-4 py-3 text-base text-terreta-dark placeholder-terreta-secondary/40 focus:border-terreta-accent focus:bg-terreta-card transition-all resize-none outline-none leading-relaxed min-h-[100px]"
+                />
+              </div>
+
+              {/* Categoría */}
+              <div>
+                <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2 block">
+                  Categoría <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={resourceCategory}
+                  onChange={(e) => setResourceCategory(e.target.value)}
+                  className="w-full rounded-xl border border-terreta-border bg-terreta-card/50 px-4 py-3 text-base text-terreta-dark focus:border-terreta-accent focus:bg-terreta-card transition-all outline-none"
+                >
+                  <option value="">Selecciona una categoría</option>
+                  <option value="Diseño">Diseño</option>
+                  <option value="Código">Código</option>
+                  <option value="Tradición">Tradición</option>
+                  <option value="Educación">Educación</option>
+                  <option value="Negocio">Negocio</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+
+              {/* Archivo */}
+              <div>
+                <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2 block">
+                  Archivo (Opcional)
+                </label>
+                <div className="border-2 border-dashed border-terreta-border rounded-xl p-6 text-center hover:border-terreta-accent transition-colors">
+                  {resourceFile ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-terreta-dark font-medium">{resourceFile.name}</p>
+                      <button
+                        onClick={() => setResourceFile(null)}
+                        className="text-xs text-red-600 hover:text-red-700 font-semibold"
+                      >
+                        Eliminar archivo
+                      </button>
+                    </div>
+                  ) : resourceFileUrl ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-terreta-dark font-medium">URL: {resourceFileUrl}</p>
+                      <button
+                        onClick={() => setResourceFileUrl('')}
+                        className="text-xs text-red-600 hover:text-red-700 font-semibold"
+                      >
+                        Eliminar URL
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="mx-auto mb-2 text-terreta-secondary" size={32} />
+                      <label className="cursor-pointer">
+                        <span className="text-sm text-terreta-accent font-semibold hover:underline">
+                          Haz clic para subir un archivo
+                        </span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setResourceFile(e.target.files[0]);
+                            }
+                          }}
+                        />
+                      </label>
+                      <p className="text-xs text-terreta-secondary mt-2">o</p>
+                      <input
+                        type="url"
+                        value={resourceFileUrl}
+                        onChange={(e) => setResourceFileUrl(e.target.value)}
+                        placeholder="Pega una URL del archivo"
+                        className="mt-2 w-full rounded-lg border border-terreta-border bg-terreta-card/50 px-3 py-2 text-sm text-terreta-dark placeholder-terreta-secondary/40 focus:border-terreta-accent focus:bg-terreta-card transition-all outline-none"
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {errorMessage && (
+                <div className="text-sm text-red-600">{errorMessage}</div>
+              )}
+
+              {/* Submit Button */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                {resourceSubmitState === 'success' && (
+                  <span className="text-xs text-emerald-600 font-bold animate-pulse">¡Recurso compartido!</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAportarModal(false);
+                    setResourceTitle('');
+                    setResourceDescription('');
+                    setResourceCategory('');
+                    setResourceFile(null);
+                    setResourceFileUrl('');
+                    setResourceSubmitState('idle');
+                  }}
+                  className="px-4 py-2 text-sm font-semibold rounded-lg bg-terreta-bg text-terreta-secondary hover:bg-terreta-sidebar transition-colors border border-terreta-border"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={!resourceTitle.trim() || !resourceCategory || uploadingResource || resourceSubmitState === 'loading'}
+                  onClick={handleSubmitResource}
+                  className="px-6 py-2 text-sm font-bold text-white rounded-lg bg-terreta-accent shadow-md transition hover:brightness-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
+                >
+                  {uploadingResource || resourceSubmitState === 'loading' ? 'Compartiendo...' : 'Compartir Recurso'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Pedir Ayuda */}
+      {showPedirAyudaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-terreta-card rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-terreta-border shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <HandHeart className="text-emerald-600" size={20} />
+                </div>
+                <h2 className="text-2xl font-serif font-bold text-terreta-dark">Pedir Ayuda</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPedirAyudaModal(false);
+                  setDetails('');
+                  setSelectedVerticals([]);
+                  setFormatTags([]);
+                  setSubmitState('idle');
+                  setErrorMessage('');
+                }}
+                className="text-terreta-secondary hover:text-terreta-dark transition-colors p-1 rounded-lg hover:bg-terreta-bg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Formulario de solicitud (simplificado para donar) */}
+            <div className="space-y-4">
+              {/* Verticals */}
+              <div>
+                <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2 block">
+                  Vertical de Interés
+                </label>
               <div className="flex flex-wrap gap-2">
                 {VERTICALS.map((vertical) => {
                   const isActive = selectedVerticals.includes(vertical);
-                  // Determine color based on vertical name
-                  let activeClass = 'border-terreta-secondary/50 bg-terreta-bg text-terreta-dark';
-                  if (vertical === 'Tecnología' || vertical === 'Salud') {
-                      activeClass = 'border-emerald-500 bg-emerald-50/10 text-emerald-600 dark:text-emerald-400';
-                  } else if (vertical === 'Arte & Educación' || vertical === 'Comunidad') {
-                      activeClass = 'border-[#8D6E63] bg-[#FDF8F6]/10 text-[#8D6E63]'; 
-                  } else {
-                      activeClass = 'border-amber-500 bg-amber-50/10 text-amber-600 dark:text-amber-400';
-                  }
-
-                  const buttonClassName = isActive
-                    ? `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition focus:outline-none focus:ring-1 focus:ring-terreta-accent ${activeClass} shadow-sm font-semibold`
-                    : 'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition focus:outline-none focus:ring-1 focus:ring-terreta-accent border-terreta-border text-terreta-secondary hover:border-terreta-accent/50 bg-terreta-card';
-
                   return (
                     <button
                       key={vertical}
                       type="button"
                       onClick={() => toggleItem(vertical, selectedVerticals, setSelectedVerticals)}
-                      className={buttonClassName}
+                        className={`px-4 py-2 text-sm rounded-full border transition ${
+                          isActive
+                            ? 'border-emerald-500 bg-emerald-50/10 text-emerald-600'
+                            : 'border-terreta-border text-terreta-secondary hover:border-terreta-accent/50 bg-terreta-card'
+                        }`}
                     >
                       {vertical}
                     </button>
                   );
                 })}
-              </div>
             </div>
         </div>
 
-        {/* Formats */}
-        <div className="grid gap-2 shrink-0 px-1 mt-2">
-          <div className="flex items-center gap-2">
-               <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide">2. Formatos preferidos</label>
-               <div className="group relative">
-                  <HelpCircle size={14} className="text-terreta-gold cursor-help" />
-                   <div className="absolute left-0 bottom-6 w-48 bg-terreta-sidebar text-terreta-dark text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity border border-terreta-border">
-                      ¿Cómo prefieres consumir este contenido? (PDF, Video, Taller...)
-                   </div>
-               </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2 items-center pb-2 border-b border-terreta-border focus-within:border-terreta-accent transition-colors">
+              {/* Format Tags */}
+              <div>
+                <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2 block">
+                  Formatos preferidos
+                </label>
+                <div className="flex flex-wrap gap-2 items-center pb-2 border-b border-terreta-border">
             {formatTags.map((tag) => (
               <span
                 key={tag}
@@ -325,61 +1151,275 @@ export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }
                 value={tagInput}
                 onChange={(event) => setTagInput(event.target.value)}
                 onKeyDown={handleTagKeyDown}
-                placeholder="Ej: videos cortos, PDF... (Enter)"
+                    placeholder="Ej: PDF, Video... (Enter)"
                 className="flex-1 min-w-[200px] bg-transparent text-base text-terreta-dark placeholder-terreta-secondary/50 outline-none py-1"
               />
           </div>
         </div>
 
         {/* Details */}
-        <div className="flex flex-col gap-3 flex-1 min-h-[150px] px-1 mt-2">
-          <div className="flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-terreta-dark uppercase tracking-wide">3. Detalles</p>
-                 <div className="group relative">
-                  <HelpCircle size={14} className="text-terreta-gold cursor-help" />
-                   <div className="absolute left-0 bottom-6 w-64 bg-terreta-sidebar text-terreta-dark text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-10 transition-opacity border border-terreta-border">
-                      Cuéntanos más sobre lo que necesitas. Sé específico para que podamos ayudarte mejor.
-                   </div>
-               </div>
-            </div>
-            
-            <button
-              type="button"
-              onClick={rotatePlaceholder}
-              className="group flex items-center gap-1.5 px-3 py-1.5 rounded bg-terreta-bg/50 hover:bg-terreta-bg text-xs text-terreta-accent transition-colors border border-terreta-border"
-            >
-               <Lightbulb size={12} className="text-terreta-gold group-hover:text-terreta-accent" />
-               <span className="font-semibold">Inspiración</span>
-            </button>
-          </div>
+              <div>
+                <label className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2 block">
+                  Detalles
+                </label>
           <textarea
             value={details}
             onChange={(event) => setDetails(event.target.value)}
-            placeholder={placeholder}
-            className="flex-1 w-full rounded-xl border-b-2 border-terreta-border bg-terreta-card/50 px-4 py-3 text-base text-terreta-dark placeholder-terreta-secondary/40 focus:border-terreta-accent focus:bg-terreta-card transition-all resize-none outline-none leading-relaxed"
+                  placeholder="Describe qué necesitas o qué puedes ofrecer..."
+                  className="w-full rounded-xl border border-terreta-border bg-terreta-card/50 px-4 py-3 text-base text-terreta-dark placeholder-terreta-secondary/40 focus:border-terreta-accent focus:bg-terreta-card transition-all resize-none outline-none leading-relaxed min-h-[120px]"
           />
         </div>
 
-        <div className="flex items-center justify-end pt-2 border-t border-terreta-border shrink-0">
-             <div className="flex items-center gap-3 ml-auto">
+              {/* Error Message */}
+              {errorMessage && (
+                <div className="text-sm text-red-600">{errorMessage}</div>
+              )}
+
+              {/* Submit Button */}
+              <div className="flex items-center justify-end gap-3 pt-2">
                 {submitState === 'success' && (
-                <span className="text-xs text-emerald-600 font-bold animate-pulse">¡Recibido!</span>
+                  <span className="text-xs text-emerald-600 font-bold animate-pulse">¡Enviado!</span>
                 )}
-                {submitState === 'error' && (
-                <span className="text-xs text-red-600 font-bold">Error al enviar.</span>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPedirAyudaModal(false);
+                    setDetails('');
+                    setSelectedVerticals([]);
+                    setFormatTags([]);
+                    setSubmitState('idle');
+                    setErrorMessage('');
+                  }}
+                  className="px-4 py-2 text-sm font-semibold rounded-lg bg-terreta-bg text-terreta-secondary hover:bg-terreta-sidebar transition-colors border border-terreta-border"
+                >
+                  Cancelar
+                </button>
                 <button
                 type="button"
                 disabled={isSubmitDisabled || submitState === 'loading'}
                 onClick={handleSubmit}
-                className="rounded-lg bg-terreta-accent px-6 py-2 text-xs font-bold text-white shadow-md transition hover:brightness-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider transform active:scale-95"
+                  className="px-6 py-2 text-sm font-bold text-white rounded-lg bg-terreta-accent shadow-md transition hover:brightness-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
                 >
-                {submitState === 'loading' ? '...' : 'Enviar'}
+                  {submitState === 'loading' ? 'Enviando...' : 'Enviar Solicitud'}
                 </button>
              </div>
         </div>
       </div>
-    </section>
+        </div>
+      )}
+
+      {/* Modal: Detalles de Solicitud */}
+      {selectedRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedRequest(null)}>
+          <div 
+            className="bg-terreta-card rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-terreta-border shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-serif font-bold text-terreta-dark">Solicitud de la Comunidad</h2>
+              <button
+                onClick={() => setSelectedRequest(null)}
+                className="text-terreta-secondary hover:text-terreta-dark transition-colors p-1 rounded-lg hover:bg-terreta-bg"
+                aria-label="Cerrar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Información del Autor */}
+            {selectedRequest.author && (
+              <div className="flex items-center gap-3 mb-6 pb-6 border-b border-terreta-border">
+                <div className="w-12 h-12 rounded-full overflow-hidden border border-terreta-border/50">
+                  <img 
+                    src={selectedRequest.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedRequest.author.name}`} 
+                    alt={selectedRequest.author.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <p className="font-semibold text-terreta-dark">{selectedRequest.author.name}</p>
+                  <p className="text-xs text-terreta-secondary">
+                    {new Date(selectedRequest.created_at).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Detalles Completos */}
+            <div className="mb-6">
+              <h3 className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2">Detalles</h3>
+              <p className="text-base text-terreta-dark leading-relaxed whitespace-pre-wrap">
+                {selectedRequest.details}
+              </p>
+            </div>
+
+            {/* Verticales y Formatos */}
+            <div className="mb-6 space-y-4">
+              {selectedRequest.verticals && selectedRequest.verticals.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2">Verticales</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRequest.verticals.map((vertical) => (
+                      <span
+                        key={vertical}
+                        className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      >
+                        {vertical}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.format_tags && selectedRequest.format_tags.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-2">Formatos Preferidos</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRequest.format_tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1 text-xs font-medium rounded-full bg-terreta-bg text-terreta-secondary border border-terreta-border"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Comentarios */}
+            <div className="mb-6">
+              <h3 className="text-sm font-bold text-terreta-dark uppercase tracking-wide mb-4">
+                Comentarios {requestComments.length > 0 && `(${requestComments.length})`}
+              </h3>
+
+              <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
+                {loadingComments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-terreta-accent"></div>
+                  </div>
+                ) : requestComments.length === 0 ? (
+                  <p className="text-sm text-terreta-secondary text-center py-4">
+                    Aún no hay comentarios. Sé el primero en responder.
+                  </p>
+                ) : (
+                  requestComments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className={`p-4 rounded-xl border ${
+                        comment.is_help_offer
+                          ? 'bg-emerald-50/50 border-emerald-200'
+                          : 'bg-terreta-bg/50 border-terreta-border/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full overflow-hidden border border-terreta-border/50 flex-shrink-0">
+                          <img 
+                            src={comment.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author.username}`} 
+                            alt={comment.author.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-semibold text-terreta-dark">
+                              {comment.author.name}
+                            </span>
+                            {comment.is_help_offer && (
+                              <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                Ofrece Ayuda
+                              </span>
+                            )}
+                            <span className="text-xs text-terreta-secondary">
+                              {new Date(comment.created_at).toLocaleDateString('es-ES', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-terreta-dark leading-relaxed whitespace-pre-wrap">
+                            {comment.content}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Formulario de Comentario */}
+            {user ? (
+              <div className="border-t border-terreta-border pt-6">
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isHelpOffer}
+                        onChange={(e) => setIsHelpOffer(e.target.checked)}
+                        className="w-4 h-4 rounded border-terreta-border text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="text-sm font-semibold text-emerald-700">
+                        Ofrecer ayuda
+                      </span>
+                    </label>
+                  </div>
+                  <textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder={isHelpOffer ? "Explica cómo puedes ayudar..." : "Escribe un comentario público..."}
+                    className="w-full rounded-xl border border-terreta-border bg-terreta-card/50 px-4 py-3 text-base text-terreta-dark placeholder-terreta-secondary/40 focus:border-terreta-accent focus:bg-terreta-card transition-all resize-none outline-none leading-relaxed min-h-[100px]"
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setSelectedRequest(null);
+                      setCommentText('');
+                      setIsHelpOffer(false);
+                    }}
+                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-terreta-bg text-terreta-secondary hover:bg-terreta-sidebar transition-colors border border-terreta-border"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSubmitComment}
+                    disabled={!commentText.trim() || submittingComment}
+                    className="px-6 py-2 text-sm font-bold text-white rounded-lg bg-terreta-accent shadow-md transition hover:brightness-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {submittingComment ? (
+                      <>
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Enviando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={14} />
+                        <span>Enviar {isHelpOffer ? 'Ayuda' : 'Comentario'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="border-t border-terreta-border pt-6 text-center">
+                <p className="text-sm text-terreta-secondary mb-3">
+                  Inicia sesión para comentar u ofrecer ayuda
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
