@@ -24,8 +24,9 @@ dist-ssr
 *.sw?
 
 
-#Ignore cursor AI rules
-.cursor\rules\codacy.mdc
+# Ignore cursor AI rules
+.cursor/
+.cursor/rules/
 
 # Supabase SQL migrations
 supabase/

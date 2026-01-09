@@ -268,6 +268,68 @@ export const EventsPage: React.FC<EventsPageProps> = ({ user, onOpenAuth }) => {
           )}
         </div>
 
+        {/* Sección: Invitación a organizar eventos */}
+        <div className="bg-gradient-to-br from-terreta-accent/10 via-terreta-card to-terreta-sidebar/30 rounded-2xl p-6 md:p-8 mb-8 border border-terreta-border/50 shadow-sm">
+          <div className="flex flex-col md:flex-row gap-6 items-start">
+            <div className="flex-1">
+              <h2 className="font-serif text-2xl md:text-3xl text-terreta-dark font-bold mb-3">
+                ¿Tienes una idea para un evento?
+              </h2>
+              <p className="text-terreta-dark/80 text-base md:text-lg mb-4 leading-relaxed">
+                En Terreta Hub <strong>organizamos eventos</strong> y <strong>invitamos a todos los miembros de la comunidad</strong> a organizar sus propios eventos. 
+                Ya sea un workshop, una charla, un networking o cualquier actividad que quieras compartir, 
+                ¡estamos aquí para apoyarte!
+              </p>
+              <p className="text-terreta-dark/70 text-sm md:text-base mb-4">
+                Crea tu evento, compártelo con la comunidad y construyamos juntos una red de conocimiento y colaboración.
+              </p>
+              {user ? (
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="inline-flex items-center gap-2 bg-terreta-accent hover:opacity-90 text-white px-6 py-3 rounded-full font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                >
+                  <Plus size={20} />
+                  Crear mi evento
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenAuth}
+                  className="inline-flex items-center gap-2 bg-terreta-accent hover:opacity-90 text-white px-6 py-3 rounded-full font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                >
+                  Inicia sesión para crear eventos
+                </button>
+              )}
+            </div>
+            
+            {/* Galería de ejemplos */}
+            <div className="w-full md:w-auto flex-shrink-0">
+              <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="relative rounded-xl overflow-hidden border-2 border-terreta-border/50 shadow-md hover:shadow-lg transition-all hover:scale-105">
+                  <img
+                    src="/onboardevent1.png"
+                    alt="Evento de la comunidad Terreta Hub - Ejemplo 1"
+                    className="w-full h-32 md:h-40 object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                </div>
+                <div className="relative rounded-xl overflow-hidden border-2 border-terreta-border/50 shadow-md hover:shadow-lg transition-all hover:scale-105">
+                  <img
+                    src="/onboardevent2.jpg"
+                    alt="Evento de la comunidad Terreta Hub - Ejemplo 2"
+                    className="w-full h-32 md:h-40 object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                </div>
+              </div>
+              <p className="text-xs text-terreta-dark/50 mt-2 text-center md:text-left">
+                Ejemplos de eventos organizados por la comunidad
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Filters */}
         <div className="flex items-center gap-3 mb-6 p-1 bg-terreta-card rounded-full border border-terreta-border w-fit">
           <button

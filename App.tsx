@@ -25,11 +25,13 @@ import { Documentation } from './components/Documentation';
 import { AgoraPostPage } from './components/AgoraPostPage';
 import { isAdmin } from './lib/userRoles';
 import { ThemeProvider } from './context/ThemeContext';
+import { OnboardingFlow } from './components/OnboardingFlow';
 
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const navigate = useNavigate();
   const userRef = useRef<AuthUser | null>(null); // Ref para verificar usuario sin causar re-renders
 
@@ -49,7 +51,7 @@ const AppContent: React.FC = () => {
       // Optimized: Select only needed columns instead of *
       const profileQuery = supabase
         .from('profiles')
-        .select('id, name, username, email, avatar, role')
+        .select('id, name, username, email, avatar, role, onboarding_completed')
         .eq('id', userId)
         .single();
       
@@ -106,7 +108,7 @@ const AppContent: React.FC = () => {
         }
 
         if (profile) {
-          return {
+          const loadedUser = {
             id: profile.id,
             name: profile.name,
             username: profile.username,
@@ -114,6 +116,11 @@ const AppContent: React.FC = () => {
             avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`,
             role: (profile.role as 'normal' | 'admin') || 'normal',
           };
+          
+          // Actualizar estado de onboarding
+          setOnboardingCompleted(profile.onboarding_completed ?? false);
+          
+          return loadedUser;
         }
         return null;
       } catch (raceError: any) {
@@ -219,10 +226,12 @@ const AppContent: React.FC = () => {
             if (loadedUser) {
               setUser(loadedUser);
               userRef.current = loadedUser; // Actualizar ref
+              // El estado de onboarding se actualiza en loadUserProfile
             } else if (!userRef.current) {
               // Solo establecer en null si no hay usuario previo
               setUser(null);
               userRef.current = null;
+              setOnboardingCompleted(null);
             }
             setIsLoadingSession(false);
             sessionChecked = true;
@@ -270,6 +279,7 @@ const AppContent: React.FC = () => {
           if (isMounted) {
             setUser(null);
             userRef.current = null; // Actualizar ref
+            setOnboardingCompleted(null);
             setIsLoadingSession(false);
             sessionChecked = true;
             isLoadingProfile = false;
@@ -296,6 +306,7 @@ const AppContent: React.FC = () => {
               if (loadedUser) {
                 setUser(loadedUser);
                 userRef.current = loadedUser; // Actualizar ref
+                // El estado de onboarding se actualiza en loadUserProfile
               }
               // Si hay error pero la sesión sigue válida, mantener el usuario actual si existe
               setIsLoadingSession(false);
@@ -337,11 +348,32 @@ const AppContent: React.FC = () => {
     };
   }, []); // Sin dependencias - el ref se actualiza cuando cambia user
 
-  const handleLoginSuccess = (loggedInUser: AuthUser) => {
+  const handleLoginSuccess = async (loggedInUser: AuthUser) => {
     setUser(loggedInUser);
     userRef.current = loggedInUser; // Actualizar ref
     setIsAuthModalOpen(false);
+    
+    // Verificar estado de onboarding
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', loggedInUser.id)
+      .single();
+    
+    setOnboardingCompleted(profile?.onboarding_completed ?? false);
     navigate('/'); // Ir a home después de login
+  };
+
+  const handleOnboardingComplete = async () => {
+    if (user) {
+      // Recargar perfil para obtener el estado actualizado
+      const loadedUser = await loadUserProfile(user.id);
+      if (loadedUser) {
+        setUser(loadedUser);
+        userRef.current = loadedUser;
+      }
+      setOnboardingCompleted(true);
+    }
   };
 
   const handleLogout = async () => {
@@ -352,7 +384,7 @@ const AppContent: React.FC = () => {
   };
 
   // Mostrar loading mientras se verifica la sesión
-  if (isLoadingSession) {
+  if (isLoadingSession || (user && onboardingCompleted === null)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-terreta-bg">
         <div className="text-center">
@@ -360,6 +392,17 @@ const AppContent: React.FC = () => {
           <p className="text-terreta-dark">Cargando...</p>
         </div>
       </div>
+    );
+  }
+
+  // Mostrar onboarding si el usuario está logueado pero no ha completado el onboarding
+  if (user && onboardingCompleted === false) {
+    return (
+      <>
+        <OnboardingFlow user={user} onComplete={handleOnboardingComplete} />
+        <Analytics />
+        <SpeedInsights />
+      </>
     );
   }
 
