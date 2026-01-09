@@ -14,10 +14,11 @@ interface AgoraPostProps {
   onReply: (postId: string, content: string) => void;
   onDelete?: (postId: string) => void;
   onOpenAuth: () => void;
+  autoOpenComments?: boolean;
 }
 
-export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply, onDelete, onOpenAuth }) => {
-  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply, onDelete, onOpenAuth, autoOpenComments = false }) => {
+  const [isCommentsOpen, setIsCommentsOpen] = useState(autoOpenComments);
   const [replyText, setReplyText] = useState('');
   const [pasteCount, setPasteCount] = useState(0);
   const [showPasteWarning, setShowPasteWarning] = useState(false);

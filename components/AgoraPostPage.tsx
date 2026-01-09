@@ -272,6 +272,7 @@ export const AgoraPostPage: React.FC<AgoraPostPageProps> = ({ user, onOpenAuth }
           onReply={handleReply}
           onDelete={handleDeletePost}
           onOpenAuth={onOpenAuth}
+          autoOpenComments={true}
         />
       </div>
     </div>
