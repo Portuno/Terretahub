@@ -50,20 +50,66 @@ export const AdminEventsPanel: React.FC<AdminEventsPanelProps> = ({ user }) => {
     try {
       setLoading(true);
       
-      // Cargar eventos en estado 'review'
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'review')
-        .order('created_at', { ascending: false });
+      // Verificar que el usuario sea admin
+      const { data: currentUserProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
-      if (eventsError) {
-        console.error('Error al cargar eventos:', eventsError);
+      if (profileError) {
+        console.error('[AdminEventsPanel] Error al verificar perfil:', profileError);
+        setEvents([]);
+        setLoading(false);
         return;
       }
 
-      if (!eventsData || eventsData.length === 0) {
+      if (currentUserProfile?.role !== 'admin') {
+        console.error('[AdminEventsPanel] Usuario no es admin. Role:', currentUserProfile?.role);
         setEvents([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log('[AdminEventsPanel] Usuario es admin, cargando eventos...');
+
+      // Cargar eventos en estado 'draft' (pendientes de revisión)
+      // Intentar sin filtro primero para ver si hay eventos
+      const { data: allEvents, error: allEventsError } = await supabase
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      console.log('[AdminEventsPanel] Todos los eventos (sin filtro):', allEvents?.length || 0);
+      if (allEvents && allEvents.length > 0) {
+        console.log('[AdminEventsPanel] Status de eventos encontrados:', allEvents.map((e: any) => ({ id: e.id, status: e.status, title: e.title })));
+      }
+
+      // Ahora filtrar por draft
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('status', 'draft')
+        .order('created_at', { ascending: false });
+
+      if (eventsError) {
+        console.error('[AdminEventsPanel] Error al cargar eventos:', eventsError);
+        console.error('[AdminEventsPanel] Detalles del error:', JSON.stringify(eventsError, null, 2));
+        setEvents([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log('[AdminEventsPanel] Eventos con status draft encontrados:', eventsData?.length || 0);
+      if (eventsData && eventsData.length > 0) {
+        console.log('[AdminEventsPanel] Eventos:', eventsData.map((e: any) => ({ id: e.id, title: e.title, status: e.status })));
+      }
+
+      if (!eventsData || eventsData.length === 0) {
+        console.log('[AdminEventsPanel] No hay eventos con status draft');
+        setEvents([]);
+        setLoading(false);
         return;
       }
 
@@ -121,18 +167,26 @@ export const AdminEventsPanel: React.FC<AdminEventsPanelProps> = ({ user }) => {
 
       const { error } = await supabase
         .from('events')
-        .update({ status: newStatus })
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', eventId);
 
       if (error) {
         console.error('Error al actualizar evento:', error);
         alert('Error al actualizar el evento. Intenta nuevamente.');
+        setProcessing(null);
         return;
       }
 
-      // Recargar eventos
+      // Recargar eventos para mostrar la lista actualizada
       await loadEvents();
       setSelectedEvent(null);
+      
+      // Mostrar mensaje de éxito
+      if (newStatus === 'published') {
+        alert('Evento aprobado exitosamente. Ahora está visible en la sección de eventos.');
+      } else {
+        alert('Evento rechazado. Se mantiene como borrador.');
+      }
     } catch (err) {
       console.error('Error al actualizar evento:', err);
       alert('Error al actualizar el evento. Intenta nuevamente.');
@@ -219,7 +273,7 @@ export const AdminEventsPanel: React.FC<AdminEventsPanelProps> = ({ user }) => {
                     )}
                   </div>
                   <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold uppercase rounded-full">
-                    Review
+                    Pendiente
                   </span>
                 </div>
 

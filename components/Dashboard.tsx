@@ -80,7 +80,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onOpenAuth, onLogout
       case '/eventos': return 'Próximos Eventos';
       case '/perfil': return 'Editor de Perfil';
       case '/admin': return 'Panel de Administración';
-      case '/admin/eventos': return 'Panel de Administración - Eventos';
       case '/': return ''; // Landing has its own hero
       default: return 'Terreta Hub';
     }

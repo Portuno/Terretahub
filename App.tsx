@@ -379,9 +379,6 @@ const AppContent: React.FC = () => {
           <Route path="admin" element={
             user && isAdmin(user) ? <AdminProjectsPanel user={user} /> : <Navigate to="/" replace />
           } />
-          <Route path="admin/eventos" element={
-            user && isAdmin(user) ? <AdminEventsPanel user={user} /> : <Navigate to="/" replace />
-          } />
         </Route>
 
         <Route 

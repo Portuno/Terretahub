@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, MapPin, Users, Clock, Image as ImageIcon, Globe, Link as LinkIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AuthUser, Event, EventStatus } from '../types';
 import { Toast } from './Toast';
+import { uploadEventImageToStorage } from '../lib/eventImageUtils';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -22,14 +23,16 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, user, e
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [category, setCategory] = useState('');
   const [isOnline, setIsOnline] = useState(false);
   const [maxAttendees, setMaxAttendees] = useState<number | undefined>(undefined);
   const [registrationRequired, setRegistrationRequired] = useState(true);
-  const [status, setStatus] = useState<EventStatus>('draft');
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (event) {
@@ -48,11 +51,12 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, user, e
       setEndTime(end.toTimeString().slice(0, 5));
       
       setImageUrl(event.imageUrl || '');
+      setSelectedImageFile(null);
+      setImagePreview(event.imageUrl || null);
       setCategory(event.category || '');
       setIsOnline(event.isOnline);
       setMaxAttendees(event.maxAttendees);
       setRegistrationRequired(event.registrationRequired);
-      setStatus(event.status);
     } else {
       // Modo creación - resetear
       setTitle('');
@@ -69,11 +73,12 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, user, e
       setEndTime('12:00');
       
       setImageUrl('');
+      setSelectedImageFile(null);
+      setImagePreview(null);
       setCategory('');
       setIsOnline(false);
       setMaxAttendees(undefined);
       setRegistrationRequired(true);
-      setStatus('draft');
     }
   }, [event, isOpen]);
 
@@ -102,10 +107,28 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, user, e
     setIsSaving(true);
 
     try {
-      // Si el usuario selecciona "published", cambiarlo a "review" para que sea aprobado por admin
-      const finalStatus = status === 'published' ? 'review' : status;
+      // Todos los eventos se crean con status 'review' para aprobación del admin
+      let finalImageUrl = imageUrl.trim() || null;
 
-      const eventData = {
+      // Si hay un archivo de imagen seleccionado, subirlo primero
+      if (selectedImageFile) {
+        try {
+          finalImageUrl = await uploadEventImageToStorage(
+            user.id,
+            event?.id || null,
+            selectedImageFile,
+            0
+          );
+        } catch (uploadError) {
+          console.error('[EventModal] Error al subir imagen:', uploadError);
+          setToastMessage('Error al subir la imagen. Intenta nuevamente.');
+          setShowToast(true);
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      const eventData: any = {
         organizer_id: user.id,
         title: title.trim(),
         description: description.trim() || null,
@@ -113,16 +136,16 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, user, e
         location_url: locationUrl.trim() || null,
         start_date: startDateTime.toISOString(),
         end_date: endDateTime.toISOString(),
-        image_url: imageUrl.trim() || null,
+        image_url: finalImageUrl,
         category: category.trim() || null,
         is_online: isOnline,
         max_attendees: maxAttendees || null,
         registration_required: registrationRequired,
-        status: finalStatus,
       };
 
       if (event) {
-        // Actualizar evento existente
+        // Actualizar evento existente - mantener el status actual
+        // No incluir status en la actualización para mantener el estado actual
         const { error } = await supabase
           .from('events')
           .update(eventData)
@@ -139,26 +162,25 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, user, e
 
         setToastMessage('Evento actualizado exitosamente');
       } else {
-        // Crear nuevo evento
-        const { error } = await supabase
+        // Crear nuevo evento - todos los eventos nuevos se crean como 'draft' para revisión del admin
+        const { error: insertError } = await supabase
           .from('events')
-          .insert(eventData)
+          .insert({
+            ...eventData,
+            status: 'draft' // Se crea como draft, el admin lo aprobará
+          })
           .select()
           .single();
 
-        if (error) {
-          console.error('[EventModal] Error creating event:', error);
+        if (insertError) {
+          console.error('[EventModal] Error creating event:', insertError);
           setToastMessage('Error al crear el evento');
           setShowToast(true);
           setIsSaving(false);
           return;
         }
 
-        if (finalStatus === 'review') {
-          setToastMessage('Evento enviado para revisión. Será publicado después de la aprobación de un administrador.');
-        } else {
-          setToastMessage('Evento creado exitosamente');
-        }
+        setToastMessage('Evento creado exitosamente. Será revisado por un administrador antes de ser publicado.');
       }
 
       setShowToast(true);
@@ -307,70 +329,116 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, user, e
               )}
             </div>
 
-            {/* Categoría e Imagen */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-terreta-dark mb-2">
-                  Categoría
+            {/* Categoría */}
+            <div>
+              <label className="block text-sm font-semibold text-terreta-dark mb-2">
+                Categoría
+              </label>
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-4 py-2 bg-terreta-bg border border-terreta-border rounded-lg text-terreta-dark focus:outline-none focus:ring-2 focus:ring-terreta-accent"
+                placeholder="Ej: Networking, Workshop"
+              />
+            </div>
+
+            {/* Imagen del Evento */}
+            <div>
+              <label className="block text-sm font-semibold text-terreta-dark mb-2">
+                <ImageIcon size={16} className="inline mr-1" />
+                Imagen del Evento
+              </label>
+              
+              {/* Input de archivo oculto */}
+              <input
+                type="file"
+                ref={imageInputRef}
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setSelectedImageFile(file);
+                    setImageUrl(''); // Limpiar URL si se selecciona archivo
+                    // Crear preview
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setImagePreview(reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="hidden"
+                id="event-image-input"
+              />
+
+              {/* Botón para seleccionar imagen */}
+              <div className="space-y-3">
+                <label
+                  htmlFor="event-image-input"
+                  className="block w-full px-4 py-2 bg-terreta-bg border border-terreta-border rounded-lg text-terreta-dark cursor-pointer hover:bg-terreta-sidebar transition-colors text-center"
+                >
+                  {selectedImageFile ? 'Cambiar imagen' : 'Seleccionar imagen local'}
                 </label>
-                <input
-                  type="text"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-2 bg-terreta-bg border border-terreta-border rounded-lg text-terreta-dark focus:outline-none focus:ring-2 focus:ring-terreta-accent"
-                  placeholder="Ej: Networking, Workshop"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-terreta-dark mb-2">
-                  <ImageIcon size={16} className="inline mr-1" />
-                  URL de Imagen
-                </label>
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-4 py-2 bg-terreta-bg border border-terreta-border rounded-lg text-terreta-dark focus:outline-none focus:ring-2 focus:ring-terreta-accent"
-                  placeholder="https://..."
-                />
+
+                {/* Preview de imagen */}
+                {(imagePreview || imageUrl) && (
+                  <div className="relative w-full max-w-md">
+                    <img
+                      src={imagePreview || imageUrl}
+                      alt="Preview"
+                      className="w-full h-48 object-cover rounded-lg border border-terreta-border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedImageFile(null);
+                        setImagePreview(null);
+                        setImageUrl('');
+                        if (imageInputRef.current) {
+                          imageInputRef.current.value = '';
+                        }
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      aria-label="Eliminar imagen"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {/* O usar URL */}
+                {!selectedImageFile && !imagePreview && (
+                  <div>
+                    <label className="block text-xs text-terreta-dark/60 mb-1">
+                      O ingresa una URL de imagen:
+                    </label>
+                    <input
+                      type="url"
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      className="w-full px-4 py-2 bg-terreta-bg border border-terreta-border rounded-lg text-terreta-dark focus:outline-none focus:ring-2 focus:ring-terreta-accent text-sm"
+                      placeholder="https://..."
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Asistentes y Registro */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-terreta-dark mb-2">
-                  <Users size={16} className="inline mr-1" />
-                  Máximo de Asistentes
-                </label>
-                <input
-                  type="number"
-                  value={maxAttendees || ''}
-                  onChange={(e) => setMaxAttendees(e.target.value ? parseInt(e.target.value) : undefined)}
-                  min="1"
-                  className="w-full px-4 py-2 bg-terreta-bg border border-terreta-border rounded-lg text-terreta-dark focus:outline-none focus:ring-2 focus:ring-terreta-accent"
-                  placeholder="Sin límite"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-terreta-dark mb-2">
-                  Estado
-                </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as EventStatus)}
-                  className="w-full px-4 py-2 bg-terreta-bg border border-terreta-border rounded-lg text-terreta-dark focus:outline-none focus:ring-2 focus:ring-terreta-accent"
-                >
-                  <option value="draft">Borrador</option>
-                  <option value="review">Enviar para Revisión</option>
-                  <option value="cancelled">Cancelado</option>
-                </select>
-                {status === 'review' && (
-                  <p className="text-xs text-terreta-dark/60 mt-1">
-                    El evento será revisado por un administrador antes de ser publicado
-                  </p>
-                )}
-              </div>
+            {/* Máximo de Asistentes */}
+            <div>
+              <label className="block text-sm font-semibold text-terreta-dark mb-2">
+                <Users size={16} className="inline mr-1" />
+                Máximo de Asistentes
+              </label>
+              <input
+                type="number"
+                value={maxAttendees || ''}
+                onChange={(e) => setMaxAttendees(e.target.value ? parseInt(e.target.value) : undefined)}
+                min="1"
+                className="w-full px-4 py-2 bg-terreta-bg border border-terreta-border rounded-lg text-terreta-dark focus:outline-none focus:ring-2 focus:ring-terreta-accent"
+                placeholder="Sin límite"
+              />
             </div>
 
             {/* Registro Requerido */}
