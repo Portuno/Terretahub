@@ -59,6 +59,7 @@ export interface SocialLinks {
   linkedin?: string;
   whatsapp?: string;
   spotify?: string;
+  facebook?: string;
   website?: string;
 }
 

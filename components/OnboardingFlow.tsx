@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowRight, ArrowLeft, User, CheckCircle, Globe, 
   Instagram, Twitter, Linkedin, Youtube, Music, MessageCircle,
-  Palette, Loader2, FolderKanban, Calendar, Package, MessageSquare
+  Palette, Loader2, FolderKanban, Calendar, Package, MessageSquare, Facebook
 } from 'lucide-react';
-import { AuthUser, SocialLinks, BioTheme } from '../types';
+import { AuthUser, SocialLinks, BioTheme, LinkBioProfile } from '../types';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { ProfileRenderer } from './ProfileEditor';
+import { uploadAvatarToStorage } from '../lib/avatarUtils';
+import { Upload, Camera } from 'lucide-react';
 
 interface ProjectPreview {
   id: string;
@@ -28,51 +31,52 @@ interface OnboardingFlowProps {
 
 type Acto = 'acto1' | 'acto2' | 'acto3' | 'completing' | 'completed';
 type Slide = 'proyectos' | 'eventos' | 'recursos' | 'agora';
+type Acto3Slide = 'avatar' | 'bio' | 'socials' | 'color';
 
-// Mapeo de colores principales a temas
+// Mapeo de colores principales a temas (debe coincidir con los temas de ProfileEditor)
 const COLOR_THEMES: Record<string, BioTheme> = {
-  tierra: {
-    id: 'tierra',
-    name: 'Tierra',
+  terreta: {
+    id: 'terreta',
+    name: 'Terreta Original',
     bgType: 'color',
     bgColor: '#F9F6F0',
     textColor: '#3E2723',
     buttonStyle: 'solid',
-    buttonColor: '#D97706',
+    buttonColor: '#3E2723',
     buttonTextColor: '#FFFFFF',
     font: 'serif'
   },
-  fuego: {
-    id: 'fuego',
-    name: 'Fuego',
+  arcilla: {
+    id: 'arcilla',
+    name: 'Arcilla',
     bgType: 'color',
-    bgColor: '#FFF5F5',
-    textColor: '#7F1D1D',
-    buttonStyle: 'solid',
-    buttonColor: '#EF4444',
+    bgColor: '#D4B896',
+    textColor: '#2C1E1A',
+    buttonStyle: 'soft',
+    buttonColor: '#A65D46',
     buttonTextColor: '#FFFFFF',
     font: 'sans'
   },
-  agua: {
-    id: 'agua',
-    name: 'Agua',
+  bosque: {
+    id: 'bosque',
+    name: 'Bosque Profundo',
     bgType: 'color',
-    bgColor: '#EFF6FF',
-    textColor: '#1E3A8A',
-    buttonStyle: 'solid',
-    buttonColor: '#3B82F6',
+    bgColor: '#2C3328',
+    textColor: '#EBE5DA',
+    buttonStyle: 'pill',
+    buttonColor: '#556B2F',
     buttonTextColor: '#FFFFFF',
-    font: 'sans'
+    font: 'serif'
   },
-  aire: {
-    id: 'aire',
-    name: 'Aire',
+  minimal: {
+    id: 'minimal',
+    name: 'Blanco Puro',
     bgType: 'color',
-    bgColor: '#F8FAFC',
-    textColor: '#334155',
+    bgColor: '#FFFFFF',
+    textColor: '#000000',
     buttonStyle: 'outline',
-    buttonColor: '#64748B',
-    buttonTextColor: '#64748B',
+    buttonColor: '#000000',
+    buttonTextColor: '#000000',
     font: 'sans'
   }
 };
@@ -92,10 +96,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
   // Acto II - Slides (no estado necesario, solo navegación)
   
   // Acto III - Recopilación de datos
+  const [acto3Slide, setActo3Slide] = useState<Acto3Slide>('avatar');
+  const [avatar, setAvatar] = useState<string>(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username || 'user'}`);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [bio, setBio] = useState('');
   const [socials, setSocials] = useState<SocialLinks>({});
   const [website, setWebsite] = useState('');
-  const [selectedColor, setSelectedColor] = useState<string>('tierra');
+  const [selectedColor, setSelectedColor] = useState<string>('terreta');
   const [extension, setExtension] = useState('');
   const [extensionError, setExtensionError] = useState('');
   const [checkingExtension, setCheckingExtension] = useState(false);
@@ -130,9 +137,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
           }
           if (existingProfile.theme) {
             const theme = existingProfile.theme as BioTheme;
-            // Mapear tema existente a color si es posible
+            // Mapear tema existente a color si es posible (primero por ID, luego por buttonColor)
             const colorKey = Object.keys(COLOR_THEMES).find(
-              key => COLOR_THEMES[key].buttonColor === theme.buttonColor
+              key => COLOR_THEMES[key].id === theme.id || COLOR_THEMES[key].buttonColor === theme.buttonColor
             );
             if (colorKey) {
               setSelectedColor(colorKey);
@@ -378,7 +385,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
 
   // Navegar al siguiente slide en Acto II
   const nextSlide = () => {
-    const slides: Slide[] = ['proyectos', 'eventos', 'recursos', 'agora'];
+    const slides: Slide[] = ['proyectos', 'recursos', 'eventos', 'agora'];
     const currentIndex = slides.indexOf(currentSlide);
     if (currentIndex < slides.length - 1) {
       setCurrentSlide(slides[currentIndex + 1]);
@@ -386,7 +393,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
   };
 
   const prevSlide = () => {
-    const slides: Slide[] = ['proyectos', 'eventos', 'recursos', 'agora'];
+    const slides: Slide[] = ['proyectos', 'recursos', 'eventos', 'agora'];
     const currentIndex = slides.indexOf(currentSlide);
     if (currentIndex > 0) {
       setCurrentSlide(slides[currentIndex - 1]);
@@ -454,7 +461,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
         username: username,
         display_name: name.trim(),
         bio: bio.trim(),
-        avatar: user.avatar,
+        avatar: avatar,
         socials: socialsWithWebsite,
         blocks: [
           { id: '1', type: 'header', title: 'Sobre Mí', isVisible: true },
@@ -599,7 +606,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
 
   // Renderizar Acto II - Slides
   const renderActo2 = () => {
-    const slides: Slide[] = ['proyectos', 'eventos', 'recursos', 'agora'];
+    const slides: Slide[] = ['proyectos', 'recursos', 'eventos', 'agora'];
     const currentIndex = slides.indexOf(currentSlide);
     
     return (
@@ -615,29 +622,23 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
             <h2 className="font-serif text-3xl md:text-4xl text-[rgb(var(--text-main))] mb-2 md:mb-2">
               Conoce Terreta Hub
             </h2>
-            <p className="text-sm md:text-base text-[rgb(var(--text-secondary))] font-sans">
-              Descubre todo lo que puedes hacer en nuestra plataforma
-            </p>
           </div>
           
           {/* Contenido del slide con glassmorphism interno */}
           <div 
             className={`backdrop-blur-md bg-white/50 rounded-2xl border border-white/40 shadow-lg ${
-              currentSlide === 'proyectos' || currentSlide === 'eventos'
+              currentSlide === 'proyectos' || currentSlide === 'eventos' || currentSlide === 'recursos'
                 ? 'p-4 md:p-6' 
                 : 'p-6 md:p-8 min-h-[300px] flex flex-col items-center justify-center'
             }`}
             style={{
               boxShadow: '0 4px 16px 0 rgba(31, 38, 135, 0.1) inset',
-              maxHeight: (currentSlide === 'proyectos' || currentSlide === 'eventos') ? 'calc(90vh - 180px)' : 'auto'
+              maxHeight: (currentSlide === 'proyectos' || currentSlide === 'eventos' || currentSlide === 'recursos') ? 'calc(90vh - 180px)' : 'auto'
             }}
           >
           {currentSlide === 'proyectos' && (
             <div className="w-full h-full flex flex-col">
               <div className="text-center mb-4 md:mb-4">
-                <div className="w-14 h-14 md:w-16 md:h-16 bg-[rgb(var(--accent))]/10 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-3">
-                  <FolderKanban size={28} className="md:w-8 md:h-8" style={{ color: accentColor }} />
-                </div>
                 <h3 className="font-serif text-2xl md:text-3xl text-[rgb(var(--text-main))] mb-2 md:mb-2">
                   Impulsa tus ideas
                 </h3>
@@ -719,9 +720,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
           {currentSlide === 'eventos' && (
             <div className="w-full h-full flex flex-col">
               <div className="text-center mb-4 md:mb-4">
-                <div className="w-14 h-14 md:w-16 md:h-16 bg-[rgb(var(--accent))]/10 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-3">
-                  <Calendar size={28} className="md:w-8 md:h-8" style={{ color: accentColor }} />
-                </div>
                 <h3 className="font-serif text-2xl md:text-3xl text-[rgb(var(--text-main))] mb-2 md:mb-2">
                   Eventos
                 </h3>
@@ -780,9 +778,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
           
           {currentSlide === 'recursos' && (
             <div className="text-center max-w-2xl">
-              <div className="w-16 h-16 bg-[rgb(var(--accent))]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Package size={32} style={{ color: accentColor }} />
-              </div>
               <h3 className="font-serif text-2xl md:text-3xl text-[rgb(var(--text-main))] mb-3">
                 Recursos
               </h3>
@@ -795,9 +790,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
           
           {currentSlide === 'agora' && (
             <div className="text-center max-w-2xl">
-              <div className="w-16 h-16 bg-[rgb(var(--accent))]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MessageSquare size={32} style={{ color: accentColor }} />
-              </div>
               <h3 className="font-serif text-2xl md:text-3xl text-[rgb(var(--text-main))] mb-3">
                 Ágora
               </h3>
@@ -845,221 +837,460 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
     );
   };
 
+  // Navegación entre slides del Acto III
+  const acto3Slides: Acto3Slide[] = ['avatar', 'bio', 'socials', 'color'];
+  const currentActo3Index = acto3Slides.indexOf(acto3Slide);
+  
+  const nextActo3Slide = () => {
+    if (currentActo3Index < acto3Slides.length - 1) {
+      setActo3Slide(acto3Slides[currentActo3Index + 1]);
+    }
+  };
+  
+  const prevActo3Slide = () => {
+    if (currentActo3Index > 0) {
+      setActo3Slide(acto3Slides[currentActo3Index - 1]);
+    }
+  };
+
+  // Manejar subida de avatar
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecciona una imagen válida');
+      return;
+    }
+
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen es demasiado grande. Por favor, selecciona una imagen menor a 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const avatarUrl = await uploadAvatarToStorage(user.id, file);
+      setAvatar(avatarUrl);
+    } catch (error) {
+      console.error('Error al subir avatar:', error);
+      alert('Error al subir la imagen. Por favor, intenta de nuevo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  // Generar perfil temporal para el preview
+  const getPreviewProfile = (): LinkBioProfile => {
+    const theme = COLOR_THEMES[selectedColor] || COLOR_THEMES.terreta;
+    
+    return {
+      username: extension || user.username || 'usuario',
+      displayName: name || user.name || 'Usuario',
+      bio: bio || 'Completa tu biografía...',
+      avatar: avatar,
+      cvUrl: undefined,
+      socials: {
+        ...socials,
+        website: website || undefined
+      },
+      blocks: [], // En el onboarding inicial no hay bloques
+      theme: theme
+    };
+  };
+
   // Renderizar Acto III
-  const renderActo3 = () => (
-    <div className="w-full max-w-2xl mx-auto p-8">
+  const renderActo3 = () => {
+    const previewProfile = getPreviewProfile();
+    
+    return (
+      <div className="w-full min-h-screen flex flex-col lg:flex-row">
+        {/* LEFT COLUMN: FORM */}
+        <div className="w-full lg:w-1/2 lg:max-w-2xl mx-auto p-4 lg:p-8">
       {/* Glassmorphism Card */}
       <div 
-        className="backdrop-blur-xl bg-white/70 rounded-3xl p-8 md:p-12 shadow-2xl border border-white/30"
+            className="backdrop-blur-xl bg-white/70 rounded-3xl p-6 lg:p-12 shadow-2xl border border-white/30"
         style={{
           boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.2) inset'
         }}
       >
-        <div className="text-center mb-8">
-          <h2 className="font-serif text-4xl text-[rgb(var(--text-main))] mb-3">
+            <div className="text-center mb-6">
+              <h2 className="font-serif text-3xl lg:text-4xl text-[rgb(var(--text-main))] mb-3">
             Completa tu Perfil
           </h2>
-          <p className="text-[rgb(var(--text-secondary))] font-sans">
+              <p className="text-[rgb(var(--text-secondary))] font-sans text-sm lg:text-base">
             Personaliza tu página personal y compártela con el mundo
           </p>
         </div>
       
-      <div className="space-y-6">
-        {/* Bio */}
-        <div>
-          <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-2 uppercase tracking-wide">
-            Descripción de qué haces
-          </label>
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            rows={4}
-            className="w-full px-4 py-3 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm transition-all text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 resize-none shadow-md"
-            placeholder="Cuéntanos sobre ti, tu trabajo, tus intereses..."
-          />
-        </div>
-        
-        {/* Redes sociales */}
-        <div>
-          <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-3 uppercase tracking-wide">
-            Redes Sociales
-          </label>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <Instagram size={20} className="text-[rgb(var(--text-secondary))]" />
-              <input
-                type="text"
-                value={socials.instagram || ''}
-                onChange={(e) => setSocials({ ...socials, instagram: e.target.value })}
-                placeholder="Instagram (usuario o URL)"
-                className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Twitter size={20} className="text-[rgb(var(--text-secondary))]" />
-              <input
-                type="text"
-                value={socials.twitter || ''}
-                onChange={(e) => setSocials({ ...socials, twitter: e.target.value })}
-                placeholder="Twitter/X (usuario o URL)"
-                className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Linkedin size={20} className="text-[rgb(var(--text-secondary))]" />
-              <input
-                type="text"
-                value={socials.linkedin || ''}
-                onChange={(e) => setSocials({ ...socials, linkedin: e.target.value })}
-                placeholder="LinkedIn (usuario o URL)"
-                className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Youtube size={20} className="text-[rgb(var(--text-secondary))]" />
-              <input
-                type="text"
-                value={socials.youtube || ''}
-                onChange={(e) => setSocials({ ...socials, youtube: e.target.value })}
-                placeholder="YouTube (canal o URL)"
-                className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <MessageCircle size={20} className="text-[rgb(var(--text-secondary))]" />
-              <input
-                type="text"
-                value={socials.tiktok || ''}
-                onChange={(e) => setSocials({ ...socials, tiktok: e.target.value })}
-                placeholder="TikTok (usuario o URL)"
-                className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <MessageCircle size={20} className="text-[rgb(var(--text-secondary))]" />
-              <input
-                type="text"
-                value={socials.whatsapp || ''}
-                onChange={(e) => setSocials({ ...socials, whatsapp: e.target.value })}
-                placeholder="WhatsApp (número o enlace)"
-                className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Music size={20} className="text-[rgb(var(--text-secondary))]" />
-              <input
-                type="text"
-                value={socials.spotify || ''}
-                onChange={(e) => setSocials({ ...socials, spotify: e.target.value })}
-                placeholder="Spotify (perfil o URL)"
-                className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
-              />
-            </div>
-          </div>
-        </div>
-        
-        {/* Website */}
-        <div>
-          <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-2 uppercase tracking-wide">
-            Website Personal o de Empresa
-          </label>
-          <div className="relative group">
-            <Globe size={18} className="absolute left-3 top-3 text-[rgb(var(--text-secondary))]/60 group-focus-within:text-[rgb(var(--accent))] transition-colors" />
-            <input
-              type="text"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://tu-website.com"
-              className="w-full pl-10 pr-4 py-3 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm transition-all text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-md"
-            />
-          </div>
-        </div>
-        
-        {/* Selección de color */}
-        <div>
-          <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-3 uppercase tracking-wide">
-            Color Principal
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Object.entries(COLOR_THEMES).map(([key, theme]) => (
-              <button
-                key={key}
-                onClick={() => setSelectedColor(key)}
-                className={`p-4 rounded-xl border-2 transition-all backdrop-blur-sm bg-white/40 ${
-                  selectedColor === key
-                    ? 'border-[rgb(var(--accent))] ring-2 ring-[rgb(var(--accent))] bg-white/60 shadow-lg'
-                    : 'border-white/50 hover:border-white/70 hover:bg-white/50'
-                }`}
-              >
-                <div
-                  className="w-full h-12 rounded mb-2"
-                  style={{ backgroundColor: theme.bgColor }}
-                />
-                <span className="font-bold text-sm text-[rgb(var(--text-main))]">{theme.name}</span>
-                {selectedColor === key && (
-                  <div className="mt-2 flex justify-center">
-                    <CheckCircle size={16} style={{ color: accentColor }} />
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Extensión personalizada */}
-        <div>
-          <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-2 uppercase tracking-wide">
-            Tu URL Personalizada
-          </label>
-          <div className="flex items-center gap-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg p-3 shadow-md">
-            <span className="text-sm text-[rgb(var(--text-secondary))] font-mono whitespace-nowrap">
-              www.terretahub.com/p/
-            </span>
-            <div className="flex-1 flex items-center">
-              <input
-                type="text"
-                value={extension}
-                onChange={(e) => handleExtensionChange(e.target.value)}
-                placeholder="tu-extension"
-                className="flex-1 bg-transparent border-none outline-none text-sm font-mono text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50"
-                maxLength={50}
-              />
-              {checkingExtension && (
-                <Loader2 size={16} className="animate-spin ml-2" style={{ color: accentColor }} />
-              )}
-            </div>
-          </div>
-          {extensionError && (
-            <p className="mt-2 text-xs text-red-500">{extensionError}</p>
-          )}
-          <p className="mt-2 text-xs text-[rgb(var(--text-secondary))]">
-            Solo letras minúsculas, números, guiones y guiones bajos. Mínimo 3 caracteres.
-          </p>
-        </div>
-        
-          {/* Mensaje importante */}
-          <div className="backdrop-blur-sm bg-[rgb(var(--accent))]/10 border border-[rgb(var(--accent))]/30 rounded-lg p-4">
-            <p className="text-sm text-[rgb(var(--text-main))]">
-              <strong>Importante:</strong> Luego podrás agregar muchas más cosas y personalizar tu perfil 
-              (fotos, videos, currículum y personalizar los colores y botones a tu antojo).
-            </p>
-          </div>
-        </div>
-        
-        <div className="mt-8 flex justify-end">
-          <button
-            onClick={handleActo3Complete}
-            disabled={!bio.trim() || !extension || extensionError !== '' || checkingExtension}
-            style={{ backgroundColor: accentColor }}
-            className="px-8 py-3 text-white font-bold rounded-lg hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          {/* Contenido del slide con glassmorphism interno */}
+          <div 
+            className="backdrop-blur-md bg-white/50 rounded-2xl border border-white/40 shadow-lg p-6 lg:p-8 min-h-[400px] flex flex-col"
+            style={{
+              boxShadow: '0 4px 16px 0 rgba(31, 38, 135, 0.1) inset'
+            }}
           >
-            Finalizar
-            <CheckCircle size={18} />
-          </button>
+            {/* Slide 1: Avatar */}
+            {acto3Slide === 'avatar' && (
+              <div className="flex flex-col items-center justify-center flex-1">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-[rgb(var(--accent))]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Camera size={32} style={{ color: accentColor }} />
+                  </div>
+                  <h3 className="font-serif text-2xl lg:text-3xl text-[rgb(var(--text-main))] mb-2">
+                    Tu Foto de Perfil
+                  </h3>
+                  <p className="text-sm lg:text-base text-[rgb(var(--text-secondary))] font-sans">
+                    Sube una foto que te represente
+                  </p>
+                </div>
+                
+                <div className="flex flex-col items-center gap-4 w-full max-w-md">
+                  <div className="relative">
+                    <img 
+                      src={avatar} 
+                      alt="Avatar" 
+                      className="w-32 h-32 rounded-full object-cover border-4 shadow-lg"
+                      style={{ borderColor: accentColor }}
+                    />
+                    {uploadingAvatar && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                        <Loader2 size={24} className="animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                      disabled={uploadingAvatar}
+                    />
+                    <div className="px-6 py-3 backdrop-blur-sm bg-white/60 border-2 border-white/50 text-[rgb(var(--text-main))] font-bold rounded-lg hover:bg-white/80 hover:border-white/70 transition-all flex items-center gap-2 shadow-md">
+                      {uploadingAvatar ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" style={{ color: accentColor }} />
+                          <span>Subiendo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={18} style={{ color: accentColor }} />
+                          <span>Subir Foto</span>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
+            
+            {/* Slide 2: Bio */}
+            {acto3Slide === 'bio' && (
+              <div className="flex flex-col flex-1">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-[rgb(var(--accent))]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <User size={32} style={{ color: accentColor }} />
+                  </div>
+                  <h3 className="font-serif text-2xl lg:text-3xl text-[rgb(var(--text-main))] mb-2">
+                    Cuéntanos sobre ti
+                  </h3>
+                  <p className="text-sm lg:text-base text-[rgb(var(--text-secondary))] font-sans">
+                    Describe qué haces y tus intereses
+                  </p>
+                </div>
+                
+                <div className="flex-1 flex flex-col justify-center">
+                  <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-3 uppercase tracking-wide">
+                    Descripción de qué haces
+                  </label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={8}
+                    className="w-full px-4 py-3 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm transition-all text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 resize-none shadow-md"
+                    placeholder="Cuéntanos sobre ti, tu trabajo, tus intereses..."
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Slide 3: Redes Sociales + Website */}
+            {acto3Slide === 'socials' && (
+              <div className="flex flex-col flex-1">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-[rgb(var(--accent))]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Globe size={32} style={{ color: accentColor }} />
+                  </div>
+                  <h3 className="font-serif text-2xl lg:text-3xl text-[rgb(var(--text-main))] mb-2">
+                    Tus Redes Sociales
+                  </h3>
+                  <p className="text-sm lg:text-base text-[rgb(var(--text-secondary))] font-sans">
+                    Conecta tus perfiles sociales
+                  </p>
+                </div>
+                
+                <div className="flex-1 flex flex-col justify-center space-y-4 max-h-[500px] overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3">
+                      <Instagram size={20} className="text-[rgb(var(--text-secondary))]" />
+                      <input
+                        type="text"
+                        value={socials.instagram || ''}
+                        onChange={(e) => setSocials({ ...socials, instagram: e.target.value })}
+                        placeholder="Instagram"
+                        className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Twitter size={20} className="text-[rgb(var(--text-secondary))]" />
+                      <input
+                        type="text"
+                        value={socials.twitter || ''}
+                        onChange={(e) => setSocials({ ...socials, twitter: e.target.value })}
+                        placeholder="Twitter/X"
+                        className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Linkedin size={20} className="text-[rgb(var(--text-secondary))]" />
+                      <input
+                        type="text"
+                        value={socials.linkedin || ''}
+                        onChange={(e) => setSocials({ ...socials, linkedin: e.target.value })}
+                        placeholder="LinkedIn"
+                        className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Facebook size={20} className="text-[rgb(var(--text-secondary))]" />
+                      <input
+                        type="text"
+                        value={socials.facebook || ''}
+                        onChange={(e) => setSocials({ ...socials, facebook: e.target.value })}
+                        placeholder="Facebook"
+                        className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Youtube size={20} className="text-[rgb(var(--text-secondary))]" />
+                      <input
+                        type="text"
+                        value={socials.youtube || ''}
+                        onChange={(e) => setSocials({ ...socials, youtube: e.target.value })}
+                        placeholder="YouTube"
+                        className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-[rgb(var(--text-secondary))]">
+                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.79 2.89 2.89 0 0 1 2.31-4.64 2.89 2.89 0 0 1 .88-.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z"/>
+                      </svg>
+                      <input
+                        type="text"
+                        value={socials.tiktok || ''}
+                        onChange={(e) => setSocials({ ...socials, tiktok: e.target.value })}
+                        placeholder="TikTok"
+                        className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-[rgb(var(--text-secondary))]">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                      </svg>
+                      <input
+                        type="text"
+                        value={socials.whatsapp || ''}
+                        onChange={(e) => setSocials({ ...socials, whatsapp: e.target.value })}
+                        placeholder="WhatsApp"
+                        className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-[rgb(var(--text-secondary))]">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.84-.179-.84-.66 0-.359.24-.66.54-.779 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.242 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.78-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.56.3z"/>
+                      </svg>
+                      <input
+                        type="text"
+                        value={socials.spotify || ''}
+                        onChange={(e) => setSocials({ ...socials, spotify: e.target.value })}
+                        placeholder="Spotify"
+                        className="flex-1 px-4 py-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="pt-4 border-t border-white/30">
+                    <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-2 uppercase tracking-wide">
+                      Website Personal o de Empresa
+                    </label>
+                    <div className="relative group">
+                      <Globe size={18} className="absolute left-3 top-3 text-[rgb(var(--text-secondary))]/60 group-focus-within:text-[rgb(var(--accent))] transition-colors" />
+                      <input
+                        type="text"
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        placeholder="https://tu-website.com"
+                        className="w-full pl-10 pr-4 py-3 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg focus:ring-2 focus:ring-[rgb(var(--accent))] focus:bg-white/80 focus:border-white/70 outline-none text-sm transition-all text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50 shadow-md"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Slide 4: Color + URL */}
+            {acto3Slide === 'color' && (
+              <div className="flex flex-col flex-1">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-[rgb(var(--accent))]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Palette size={32} style={{ color: accentColor }} />
+                  </div>
+                  <h3 className="font-serif text-2xl lg:text-3xl text-[rgb(var(--text-main))] mb-2">
+                    Personaliza tu Estilo
+                  </h3>
+                  <p className="text-sm lg:text-base text-[rgb(var(--text-secondary))] font-sans">
+                    Elige tu color y tu URL personalizada
+                  </p>
+                </div>
+                
+                <div className="flex-1 flex flex-col justify-center space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-4 uppercase tracking-wide">
+                      Color Principal
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {Object.entries(COLOR_THEMES).map(([key, theme]) => (
+                        <button
+                          key={key}
+                          onClick={() => setSelectedColor(key)}
+                          className={`p-4 rounded-xl border-2 transition-all backdrop-blur-sm bg-white/40 ${
+                            selectedColor === key
+                              ? 'border-[rgb(var(--accent))] ring-2 ring-[rgb(var(--accent))] bg-white/60 shadow-lg'
+                              : 'border-white/50 hover:border-white/70 hover:bg-white/50'
+                          }`}
+                        >
+                          <div
+                            className="w-full h-12 rounded mb-2"
+                            style={{ backgroundColor: theme.bgColor }}
+                          />
+                          <span className="font-bold text-sm text-[rgb(var(--text-main))]">{theme.name}</span>
+                          {selectedColor === key && (
+                            <div className="mt-2 flex justify-center">
+                              <CheckCircle size={16} style={{ color: accentColor }} />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-bold text-[rgb(var(--text-main))] mb-2 uppercase tracking-wide">
+                      Tu URL Personalizada
+                    </label>
+                    <div className="flex items-center gap-2 backdrop-blur-sm bg-white/60 border border-white/50 rounded-lg p-3 shadow-md">
+                      <span className="text-sm text-[rgb(var(--text-secondary))] font-mono whitespace-nowrap">
+                        www.terretahub.com/p/
+                      </span>
+                      <div className="flex-1 flex items-center">
+                        <input
+                          type="text"
+                          value={extension}
+                          onChange={(e) => handleExtensionChange(e.target.value)}
+                          placeholder="tu-extension"
+                          className="flex-1 bg-transparent border-none outline-none text-sm font-mono text-[rgb(var(--text-main))] placeholder:text-[rgb(var(--text-secondary))]/50"
+                          maxLength={50}
+                        />
+                        {checkingExtension && (
+                          <Loader2 size={16} className="animate-spin ml-2" style={{ color: accentColor }} />
+                        )}
+                      </div>
+                    </div>
+                    {extensionError && (
+                      <p className="mt-2 text-xs text-red-500">{extensionError}</p>
+                    )}
+                    <p className="mt-2 text-xs text-[rgb(var(--text-secondary))]">
+                      Solo letras minúsculas, números, guiones y guiones bajos. Mínimo 3 caracteres.
+                    </p>
+                  </div>
+                  
+                  <div className="backdrop-blur-sm bg-[rgb(var(--accent))]/10 border border-[rgb(var(--accent))]/30 rounded-lg p-4">
+                    <p className="text-sm text-[rgb(var(--text-main))]">
+                      <strong>Importante:</strong> Luego podrás agregar muchas más cosas y personalizar tu perfil 
+                      (fotos, videos, currículum y personalizar los colores y botones a tu antojo).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Navegación entre slides */}
+          <div className="mt-6 flex justify-between items-center gap-2">
+            <button
+              onClick={prevActo3Slide}
+              disabled={currentActo3Index === 0}
+              className="px-5 py-3 backdrop-blur-sm bg-white/60 border-2 border-white/50 text-[rgb(var(--text-main))] font-bold rounded-lg hover:bg-white/80 hover:border-white/70 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-sm min-h-[44px]"
+            >
+              <ArrowLeft size={18} />
+              <span className="hidden sm:inline">Anterior</span>
+            </button>
+            
+            {currentActo3Index === acto3Slides.length - 1 ? (
+              <button
+                onClick={handleActo3Complete}
+                disabled={!bio.trim() || !extension || extensionError !== '' || checkingExtension}
+                style={{ backgroundColor: accentColor }}
+                className="flex-1 px-6 py-3.5 text-white font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg text-base min-h-[48px] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Finalizar
+                <CheckCircle size={18} />
+              </button>
+            ) : (
+              <button
+                onClick={nextActo3Slide}
+                style={{ backgroundColor: accentColor }}
+                className="flex-1 px-6 py-3.5 text-white font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg text-base min-h-[48px]"
+              >
+                Siguiente
+                <ArrowRight size={18} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN: PREVIEW (Desktop only) */}
+      <div className="hidden lg:flex flex-1 bg-terreta-bg items-center justify-center p-8 relative">
+        <div className="absolute top-8 right-8 text-xs font-bold text-terreta-secondary uppercase tracking-widest">
+          Vista Previa Móvil
+        </div>
+        
+        {/* Phone Frame */}
+        <div className="w-[340px] h-[680px] bg-black rounded-[3rem] p-3 shadow-2xl border-[6px] border-gray-800 relative overflow-hidden ring-4 ring-gray-900/10">
+          <div className="w-full h-full bg-white rounded-[2.2rem] overflow-hidden overflow-y-auto no-scrollbar relative">
+            {/* Dynamic Content */}
+            <ProfileRenderer profile={previewProfile} />
+
+            {/* Branding Badge */}
+            <div className="pb-6 pt-8 text-center bg-transparent relative z-10">
+              <span className="text-[10px] font-bold opacity-30 uppercase tracking-widest mix-blend-difference text-white/50" style={{ color: previewProfile.theme.textColor }}>
+                Terreta Hub
+              </span>
+            </div>
+          </div>
+          
+          {/* Notch */}
+          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-black rounded-b-xl z-20"></div>
         </div>
       </div>
     </div>
   );
+  };
 
   // Renderizar pantalla de carga
   const renderCompleting = () => (
@@ -1142,11 +1373,11 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
       {/* Overlay sutil para mejorar legibilidad */}
       <div className="fixed inset-0 bg-[rgb(var(--bg-main))]/40 backdrop-blur-[0.5px]" />
       
-      <div className="relative min-h-screen flex items-center justify-center py-6 px-4">
-        <div className="w-full animate-fade-in max-h-[90vh] overflow-hidden">
+      <div className={`relative min-h-screen flex items-center justify-center py-6 px-4 ${currentActo === 'acto3' ? 'items-stretch' : ''}`}>
+        <div className={`w-full animate-fade-in ${currentActo === 'acto3' ? 'max-h-full h-full' : 'max-h-[90vh] overflow-hidden'}`}>
           {currentActo === 'acto1' && <div className="animate-scale-in">{renderActo1()}</div>}
           {currentActo === 'acto2' && <div className="animate-scale-in">{renderActo2()}</div>}
-          {currentActo === 'acto3' && <div className="animate-scale-in">{renderActo3()}</div>}
+          {currentActo === 'acto3' && <div className="animate-scale-in h-full">{renderActo3()}</div>}
           {currentActo === 'completing' && <div className="animate-fade-in">{renderCompleting()}</div>}
           {currentActo === 'completed' && <div className="animate-scale-in">{renderCompleted()}</div>}
         </div>
