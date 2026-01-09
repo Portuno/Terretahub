@@ -687,7 +687,7 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
                       <textarea
                           ref={textareaRef}
                           placeholder="Comparte algo con la comunidad"
-                          className="w-full bg-transparent border-none focus:ring-0 text-lg placeholder-terreta-secondary/50 resize-none h-24 p-0 pb-14 font-sans text-terreta-dark"
+                          className="w-full bg-transparent border-none focus:ring-0 text-lg placeholder-terreta-secondary/50 resize-none h-24 p-0 pb-2 font-sans text-terreta-dark"
                           value={newPostContent}
                           onChange={(e) => {
                             setNewPostContent(e.target.value);
@@ -707,56 +707,6 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
                         onSelect={insertMention}
                         loading={mentionsLoading}
                       />
-                    </div>
-                    
-                    {/* Media Icons - Bottom Left */}
-                    <div className="absolute bottom-3 left-0 flex gap-2 z-10">
-                      <input
-                        type="file"
-                        ref={imageInputRef}
-                        onChange={handleImageSelect}
-                        accept="image/jpeg,image/png,image/webp"
-                        multiple
-                        className="hidden"
-                        id="agora-image-input"
-                      />
-                      <label
-                        htmlFor="agora-image-input"
-                        className="p-1.5 text-terreta-secondary hover:text-terreta-dark hover:bg-terreta-bg rounded transition-colors cursor-pointer"
-                        title="Agregar fotos"
-                      >
-                        <ImageIcon size={18} />
-                      </label>
-                      
-                      <input
-                        type="file"
-                        ref={videoInputRef}
-                        onChange={handleVideoSelect}
-                        accept="video/mp4,video/webm"
-                        className="hidden"
-                        id="agora-video-input"
-                      />
-                      <label
-                        htmlFor="agora-video-input"
-                        className="p-1.5 text-terreta-secondary hover:text-terreta-dark hover:bg-terreta-bg rounded transition-colors cursor-pointer"
-                        title="Agregar video"
-                      >
-                        <Video size={18} />
-                      </label>
-                      
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowLinkInput(!showLinkInput);
-                          if (!showLinkInput && linkInputRef.current) {
-                            setTimeout(() => linkInputRef.current?.focus(), 0);
-                          }
-                        }}
-                        className="p-1.5 text-terreta-secondary hover:text-terreta-dark hover:bg-terreta-bg rounded transition-colors cursor-pointer"
-                        title="Agregar enlace"
-                      >
-                        <LinkIcon size={18} />
-                      </button>
                     </div>
                  </div>
 
@@ -831,7 +781,55 @@ export const AgoraFeed: React.FC<AgoraFeedProps> = ({ user, onOpenAuth }) => {
                  </div>
 
                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-xs font-bold text-terreta-accent uppercase tracking-wide">Público</span>
+                    {/* Media Icons */}
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        ref={imageInputRef}
+                        onChange={handleImageSelect}
+                        accept="image/jpeg,image/png,image/webp"
+                        multiple
+                        className="hidden"
+                        id="agora-image-input"
+                      />
+                      <label
+                        htmlFor="agora-image-input"
+                        className="p-1.5 text-terreta-secondary hover:text-terreta-dark hover:bg-terreta-bg rounded transition-colors cursor-pointer"
+                        title="Agregar fotos"
+                      >
+                        <ImageIcon size={18} />
+                      </label>
+                      
+                      <input
+                        type="file"
+                        ref={videoInputRef}
+                        onChange={handleVideoSelect}
+                        accept="video/mp4,video/webm"
+                        className="hidden"
+                        id="agora-video-input"
+                      />
+                      <label
+                        htmlFor="agora-video-input"
+                        className="p-1.5 text-terreta-secondary hover:text-terreta-dark hover:bg-terreta-bg rounded transition-colors cursor-pointer"
+                        title="Agregar video"
+                      >
+                        <Video size={18} />
+                      </label>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowLinkInput(!showLinkInput);
+                          if (!showLinkInput && linkInputRef.current) {
+                            setTimeout(() => linkInputRef.current?.focus(), 0);
+                          }
+                        }}
+                        className="p-1.5 text-terreta-secondary hover:text-terreta-dark hover:bg-terreta-bg rounded transition-colors cursor-pointer"
+                        title="Agregar enlace"
+                      >
+                        <LinkIcon size={18} />
+                      </button>
+                    </div>
                     <button 
                       type="submit" 
                       disabled={(!newPostContent.trim() && selectedFiles.length === 0 && !linkUrl.trim()) || isUploading}
