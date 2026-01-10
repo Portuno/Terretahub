@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Twitter, Facebook, Instagram, MessageCircle } from 'lucide-react';
+import { X, Twitter, Facebook, Instagram, MessageCircle, Linkedin } from 'lucide-react';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -34,6 +34,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${fullPostUrl}`)}`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(fullPostUrl)}`;
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullPostUrl)}`;
+  const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(fullPostUrl)}`;
   // Instagram Stories usa un esquema especial que abre la app
   const instagramStoryUrl = `https://www.instagram.com/create/story/?media=${encodeURIComponent(fullPostUrl)}`;
 
@@ -127,6 +128,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           >
             <Facebook size={24} />
             <span>Compartir en Facebook</span>
+          </button>
+
+          <button
+            onClick={() => handleShare(linkedinUrl, 'linkedin')}
+            className="w-full flex items-center gap-3 p-4 bg-[#0077B5] hover:bg-[#006399] text-white rounded-lg transition-colors font-medium"
+          >
+            <Linkedin size={24} />
+            <span>Compartir en LinkedIn</span>
           </button>
 
           <button
