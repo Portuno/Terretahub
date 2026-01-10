@@ -55,6 +55,7 @@ interface ResourceNeed {
 
 interface ResourceCollabPanelProps {
   user?: AuthUser | null;
+  onOpenAuth?: () => void;
 }
 
 // Componente: Tarjeta de Recurso (L'Almoina Card)
@@ -214,7 +215,7 @@ const TablonSolicitudes: React.FC<{
   );
 };
 
-export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user }) => {
+export const ResourceCollabPanel: React.FC<ResourceCollabPanelProps> = ({ user, onOpenAuth }) => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [requests, setRequests] = useState<ResourceNeed[]>([]);
@@ -1022,7 +1023,13 @@ const PLACEHOLDERS = [
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-xl font-serif font-semibold text-terreta-dark">Explorar</h2>
             <button
-              onClick={() => setShowAportarModal(true)}
+              onClick={() => {
+                if (!user && onOpenAuth) {
+                  onOpenAuth();
+                } else {
+                  setShowAportarModal(true);
+                }
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-terreta-accent text-white rounded-lg font-bold hover:brightness-90 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
               aria-label="Aportar Recurso"
             >
@@ -1079,7 +1086,13 @@ const PLACEHOLDERS = [
                 Solicitudes de la Comunidad
               </h2>
               <button
-                onClick={() => setShowPedirAyudaModal(true)}
+                onClick={() => {
+                  if (!user && onOpenAuth) {
+                    onOpenAuth();
+                  } else {
+                    setShowPedirAyudaModal(true);
+                  }
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm hover:shadow-md"
                 aria-label="Pedir Ayuda"
               >

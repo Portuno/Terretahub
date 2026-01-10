@@ -417,7 +417,7 @@ const AppContent: React.FC = () => {
           <Route path="agora" element={<AgoraFeed user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />} />
           <Route path="comunidad" element={<CommunityPage />} />
           <Route path="proyectos" element={<ProjectsPage user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />} />
-          <Route path="recursos" element={<ResourceCollabPanel user={user} />} />
+          <Route path="recursos" element={<ResourceCollabPanel user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />} />
           <Route path="eventos" element={<EventsPage user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />} />
           <Route path="blogs" element={<BlogsPage user={user} onOpenAuth={() => setIsAuthModalOpen(true)} />} />
           <Route path="perfil" element={
