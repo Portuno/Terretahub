@@ -465,10 +465,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
 
   // Completar Acto III y finalizar
   const handleActo3Complete = async () => {
-    if (!bio.trim()) {
-      return;
-    }
-    
     const isValid = await validateExtension(extension);
     if (!isValid || extensionError) {
       return;
@@ -484,18 +480,18 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
         socialsWithWebsite.website = website.trim();
       }
       
+      // Usar bio del usuario o valor por defecto
+      const finalBio = bio.trim() || 'Explorando la Terreta';
+      
       // Crear o actualizar link_bio_profile
       const profileData = {
         user_id: user.id,
         username: username,
         display_name: name.trim(),
-        bio: bio.trim(),
+        bio: finalBio,
         avatar: avatar,
         socials: socialsWithWebsite,
-        blocks: [
-          { id: '1', type: 'header', title: 'Sobre Mí', isVisible: true },
-          { id: '2', type: 'text', content: bio.trim(), isVisible: true }
-        ],
+        blocks: [], // No crear bloques automáticos para evitar duplicación
         theme: selectedTheme,
         is_published: true,
         custom_slug: extension.toLowerCase().replace(/[^a-z0-9_-]/g, '')
@@ -918,7 +914,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
     return {
       username: extension || user.username || 'usuario',
       displayName: name || user.name || 'Usuario',
-      bio: bio || 'Completa tu biografía...',
+      bio: bio.trim() || 'Explorando la Terreta',
       avatar: avatar,
       cvUrl: undefined,
       socials: {
@@ -1272,7 +1268,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
             {currentActo3Index === acto3Slides.length - 1 ? (
               <button
                 onClick={handleActo3Complete}
-                disabled={!bio.trim() || !extension || extensionError !== '' || checkingExtension}
+                disabled={!extension || extensionError !== '' || checkingExtension}
                 style={{ backgroundColor: accentColor }}
                 className="flex-1 px-6 py-3.5 text-white font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg text-base min-h-[48px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
