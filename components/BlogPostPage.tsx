@@ -617,6 +617,8 @@ export const BlogPostPage: React.FC<BlogPostPageProps> = ({ user, onOpenAuth }) 
           postContent={blog.excerpt || blog.title}
           authorName={blog.author.name}
           authorHandle={blog.author.username}
+          title={blog.title}
+          contentType="blog"
         />
       )}
     </div>

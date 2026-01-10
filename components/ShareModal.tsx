@@ -8,6 +8,8 @@ interface ShareModalProps {
   postContent: string;
   authorName: string;
   authorHandle: string;
+  title?: string; // Título del blog o post
+  contentType?: 'blog' | 'agora'; // Tipo de contenido
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
@@ -16,7 +18,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   postUrl,
   postContent,
   authorName,
-  authorHandle
+  authorHandle,
+  title,
+  contentType
 }) => {
   if (!isOpen) return null;
 
@@ -30,11 +34,24 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   
   const shareText = `${truncatedContent} - ${authorName} ${authorHandle} en Terreta Hub`;
 
+  // Texto personalizado para LinkedIn según el tipo de contenido
+  let linkedinSummary = '';
+  if (contentType === 'blog' && title) {
+    linkedinSummary = `Acabo de leer este artículo sobre "${title}"`;
+  } else if (contentType === 'agora') {
+    const truncatedAgoraContent = postContent.length > 150 
+      ? `${postContent.substring(0, 150)}...` 
+      : postContent;
+    linkedinSummary = `Comparto esta reflexión del Ágora: "${truncatedAgoraContent}"`;
+  } else {
+    linkedinSummary = shareText;
+  }
+
   // URLs de compartir
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${fullPostUrl}`)}`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(fullPostUrl)}`;
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullPostUrl)}`;
-  const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(fullPostUrl)}`;
+  const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(fullPostUrl)}&summary=${encodeURIComponent(linkedinSummary)}`;
   // Instagram Stories usa un esquema especial que abre la app
   const instagramStoryUrl = `https://www.instagram.com/create/story/?media=${encodeURIComponent(fullPostUrl)}`;
 

@@ -494,6 +494,7 @@ export const AgoraPost: React.FC<AgoraPostProps> = ({ post, currentUser, onReply
       postContent={post.content || ''}
       authorName={post.author.name}
       authorHandle={post.author.handle}
+      contentType="agora"
     />
     </>
   );
