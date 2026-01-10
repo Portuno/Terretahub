@@ -99,9 +99,16 @@ const TERRE_MASCOT_ANIMATION: MascotAnimationData = {
 
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete }) => {
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [currentActo, setCurrentActo] = useState<Acto>('acto1');
   const [currentSlide, setCurrentSlide] = useState<Slide>('proyectos');
+  
+  // Verificar que el tema sea "tierra"
+  useEffect(() => {
+    if (theme !== 'tierra') {
+      setTheme('tierra');
+    }
+  }, [theme, setTheme]);
   
   // Acto I - Información básica
   const [name, setName] = useState(user.name || '');
